@@ -40,7 +40,6 @@ public class BizConfig extends RefreshableConfig {
   private static final int DEFAULT_ITEM_VALUE_LENGTH = 20000;
 
   private static final int DEFAULT_MAX_NAMESPACE_NUM = 200;
-  private static final String[] DEFAULT_NAMESPACE_NUM_LIMIT_WHITE = new String[]{};
 
   private static final int DEFAULT_APPNAMESPACE_CACHE_REBUILD_INTERVAL = 60; //60s
   private static final int DEFAULT_GRAY_RELEASE_RULE_SCAN_INTERVAL = 60; //60s
@@ -105,13 +104,17 @@ public class BizConfig extends RefreshableConfig {
     return checkInt(limit, 5, Integer.MAX_VALUE, DEFAULT_ITEM_VALUE_LENGTH);
   }
 
+  public boolean isNamespaceNumLimitEnabled() {
+    return getBooleanProperty("namespace.num.limit.enabled", false);
+  }
+
   public int namespaceNumLimit() {
     int limit = getIntProperty("namespace.num.limit", DEFAULT_MAX_NAMESPACE_NUM);
     return checkInt(limit, 0, Integer.MAX_VALUE, DEFAULT_MAX_NAMESPACE_NUM);
   }
 
   public Set<String> namespaceNumLimitWhite() {
-    return Sets.newHashSet(getArrayProperty("namespace.num.limit.white", DEFAULT_NAMESPACE_NUM_LIMIT_WHITE));
+    return Sets.newHashSet(getArrayProperty("namespace.num.limit.white", new String[0]));
   }
 
   public Map<Long, Integer> namespaceValueLengthLimitOverride() {

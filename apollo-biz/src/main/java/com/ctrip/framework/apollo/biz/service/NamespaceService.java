@@ -354,9 +354,9 @@ public class NamespaceService {
       throw new ServiceException("namespace not unique");
     }
 
-    if (!bizConfig.namespaceNumLimitWhite().contains(entity.getAppId())){
-      int nowCount = namespaceRepository.countByAppIdAndClusterName(entity.getAppId(), entity.getClusterName()) ;
-      if(nowCount >= bizConfig.namespaceNumLimit()) {
+    if (bizConfig.isNamespaceNumLimitEnabled() && !bizConfig.namespaceNumLimitWhite().contains(entity.getAppId())) {
+      int nowCount = namespaceRepository.countByAppIdAndClusterName(entity.getAppId(), entity.getClusterName());
+      if (nowCount >= bizConfig.namespaceNumLimit()) {
         throw new ServiceException("namespace[appId = " + entity.getAppId() + ", cluster= " + entity.getClusterName() + "] nowCount= " + nowCount + ", maxCount =" + bizConfig.namespaceNumLimit());
       }
     }
