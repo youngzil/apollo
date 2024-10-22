@@ -71,7 +71,7 @@ public class ClientAuthenticationFilter implements Filter {
     }
 
     List<String> availableSecrets = accessKeyUtil.findAvailableSecret(appId);
-    if (!CollectionUtils.isEmpty(availableSecrets)) {
+    if (bizConfig.isAccessKeyAuthEnabled() && !CollectionUtils.isEmpty(availableSecrets)) {
       if (!doCheck(request, response, appId, availableSecrets, false)) {
         return;
       }

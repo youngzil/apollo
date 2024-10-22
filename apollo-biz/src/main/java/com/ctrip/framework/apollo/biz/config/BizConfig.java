@@ -161,6 +161,10 @@ public class BizConfig extends RefreshableConfig {
     return TimeUnit.SECONDS;
   }
 
+  public boolean isAccessKeyAuthEnabled() {
+    return getBooleanProperty("apollo.access-key.auth.enabled", true);
+  }
+
   public int accessKeyCacheScanInterval() {
     int interval = getIntProperty("apollo.access-key-cache-scan.interval",
         DEFAULT_ACCESS_KEY_CACHE_SCAN_INTERVAL);
