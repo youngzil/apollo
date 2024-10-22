@@ -106,6 +106,21 @@ public class BizConfig extends RefreshableConfig {
     return checkInt(limit, 5, Integer.MAX_VALUE, DEFAULT_ITEM_VALUE_LENGTH);
   }
 
+  public Set<String> itemValueLengthLimitWhite() {
+    return Sets.newHashSet(getArrayProperty("item.value.length.limit.white", new String[0]));
+  }
+
+  public Map<Long, Integer> namespaceValueLengthLimitOverride() {
+    String namespaceValueLengthOverrideString = getValue("namespace.value.length.limit.override");
+    Map<Long, Integer> namespaceValueLengthOverride = Maps.newHashMap();
+    if (!Strings.isNullOrEmpty(namespaceValueLengthOverrideString)) {
+      namespaceValueLengthOverride =
+          GSON.fromJson(namespaceValueLengthOverrideString, namespaceValueLengthOverrideTypeReference);
+    }
+
+    return namespaceValueLengthOverride;
+  }
+
   public boolean isNamespaceNumLimitEnabled() {
     return getBooleanProperty("namespace.num.limit.enabled", false);
   }
@@ -126,17 +141,6 @@ public class BizConfig extends RefreshableConfig {
   public int itemNumLimit() {
     int limit = getIntProperty("item.num.limit", DEFAULT_MAX_ITEM_NUM);
     return checkInt(limit, 5, Integer.MAX_VALUE, DEFAULT_MAX_ITEM_NUM);
-  }
-
-  public Map<Long, Integer> namespaceValueLengthLimitOverride() {
-    String namespaceValueLengthOverrideString = getValue("namespace.value.length.limit.override");
-    Map<Long, Integer> namespaceValueLengthOverride = Maps.newHashMap();
-    if (!Strings.isNullOrEmpty(namespaceValueLengthOverrideString)) {
-      namespaceValueLengthOverride =
-          GSON.fromJson(namespaceValueLengthOverrideString, namespaceValueLengthOverrideTypeReference);
-    }
-
-    return namespaceValueLengthOverride;
   }
 
   public boolean isNamespaceLockSwitchOff() {

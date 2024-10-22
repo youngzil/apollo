@@ -217,8 +217,12 @@ public class ItemService {
   }
 
   private boolean checkItemValueLength(long namespaceId, String value) {
-    int limit = getItemValueLengthLimit(namespaceId);
     Namespace currentNamespace = namespaceService.findOne(namespaceId);
+    if (isItemValueLengthLimitWhite(currentNamespace.getAppId())) {
+      return true;
+    }
+
+    int limit = getItemValueLengthLimit(namespaceId);
     if(currentNamespace != null) {
       Matcher m = clusterPattern.matcher(currentNamespace.getClusterName());
       boolean isGray = m.matches();
@@ -273,6 +277,10 @@ public class ItemService {
       throw NotFoundException.namespaceNotFound(appId, clusterName, namespaceName);
     }
     return namespace;
+  }
+
+  private boolean isItemValueLengthLimitWhite(String appId) {
+    return bizConfig.itemValueLengthLimitWhite().contains(appId);
   }
 
 }
