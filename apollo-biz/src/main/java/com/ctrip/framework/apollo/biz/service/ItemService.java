@@ -27,16 +27,19 @@ import com.ctrip.framework.apollo.common.exception.BadRequestException;
 import com.ctrip.framework.apollo.common.exception.NotFoundException;
 import com.ctrip.framework.apollo.common.utils.BeanUtils;
 import com.ctrip.framework.apollo.core.utils.StringUtils;
-
+import java.util.Collections;
+import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 public class ItemService {
@@ -97,6 +100,17 @@ public class ItemService {
 
   public Item findOne(long itemId) {
     return itemRepository.findById(itemId).orElse(null);
+  }
+
+  public Map<String, String> findNonEmptyItemsWithOrdered(Long namespaceId) {
+    List<Item> items = itemRepository.findByNamespaceIdOrderByLineNumAsc(namespaceId);
+    if (items == null) {
+      items = Collections.emptyList();
+    }
+
+    Map<String, String> configurations = items.stream().filter(item -> !StringUtils.isBlank(item.getKey())).collect(Collectors.toMap(Item::getKey, Item::getValue, (e1, e2) -> e2, LinkedHashMap::new));
+
+    return configurations;
   }
 
   public List<Item> findItemsWithoutOrdered(Long namespaceId) {

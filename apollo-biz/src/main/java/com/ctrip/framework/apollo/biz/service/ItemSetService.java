@@ -27,7 +27,9 @@ import com.ctrip.framework.apollo.common.exception.BadRequestException;
 import com.ctrip.framework.apollo.common.exception.NotFoundException;
 import com.ctrip.framework.apollo.common.utils.BeanUtils;
 import com.ctrip.framework.apollo.core.utils.StringUtils;
+import com.google.gson.Gson;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -35,6 +37,8 @@ import org.springframework.util.CollectionUtils;
 
 @Service
 public class ItemSetService {
+
+  private static final Gson GSON = new Gson();
 
   private final AuditService auditService;
   private final CommitService commitService;
@@ -69,15 +73,8 @@ public class ItemSetService {
       throw NotFoundException.namespaceNotFound(appId, clusterName, namespaceName);
     }
 
-    if (bizConfig.isItemNumLimitEnabled()) {
-      int itemCount = itemService.findNonEmptyItemCount(namespace.getId());
-      int createItemCount = (int) changeSet.getCreateItems().stream().filter(item -> !StringUtils.isEmpty(item.getKey())).count();
-      int deleteItemCount = (int) changeSet.getDeleteItems().stream().filter(item -> !StringUtils.isEmpty(item.getKey())).count();
-      itemCount = itemCount + createItemCount - deleteItemCount;
-      if (itemCount > bizConfig.itemNumLimit()) {
-        throw new BadRequestException("The maximum number of items (" + bizConfig.itemNumLimit() + ") for this namespace has been reached. Current item count is " + itemCount + ".");
-      }
-    }
+    checkItemNumLimit(namespace, changeSet);
+    checkNamespaceConfigurationsLengthLimit(namespace, changeSet);
 
     String operator = changeSet.getDataChangeLastModifiedBy();
     ConfigChangeContentBuilder configChangeContentBuilder = new ConfigChangeContentBuilder();
@@ -159,6 +156,42 @@ public class ItemSetService {
       Item createdItem = itemService.save(entity);
       configChangeContentBuilder.createItem(createdItem);
     }
+  }
+
+  private boolean checkItemNumLimit(Namespace namespace, ItemChangeSets changeSet) {
+
+    if (bizConfig.isItemNumLimitEnabled()) {
+      int itemCount = itemService.findNonEmptyItemCount(namespace.getId());
+      int createItemCount = (int) changeSet.getCreateItems().stream().filter(item -> !StringUtils.isEmpty(item.getKey())).count();
+      int deleteItemCount = (int) changeSet.getDeleteItems().stream().filter(item -> !StringUtils.isEmpty(item.getKey())).count();
+      itemCount = itemCount + createItemCount - deleteItemCount;
+      if (itemCount > bizConfig.itemNumLimit()) {
+        throw new BadRequestException("The maximum number of items (" + bizConfig.itemNumLimit() + ") for this namespace has been reached. Current item count is " + itemCount + ".");
+      }
+    }
+    return true;
+  }
+
+  private boolean checkNamespaceConfigurationsLengthLimit(Namespace namespace, ItemChangeSets changeSet) {
+
+    if(bizConfig.isNamespaceConfigurationsLengthLimitEnabled()) {
+      Map<String, String> configurations = itemService.findNonEmptyItemsWithOrdered(namespace.getId());
+      changeSet.getCreateItems().stream().filter(entity -> !StringUtils.isEmpty(entity.getKey())).forEach(entity -> configurations.put(entity.getKey(), entity.getValue()));
+      changeSet.getUpdateItems().stream().filter(entity -> !StringUtils.isEmpty(entity.getKey())).forEach(entity -> configurations.put(entity.getKey(), entity.getValue()));
+      changeSet.getDeleteItems().stream().filter(entity -> !StringUtils.isEmpty(entity.getKey())).forEach(entity -> configurations.remove(entity.getKey()));
+      String configuration = GSON.toJson(configurations);
+
+      int configurationsLength = configuration.length();
+      int configurationsLengthLimit = bizConfig.namespaceConfigurationsLengthLimit();
+
+      if (configurationsLength > configurationsLengthLimit) {
+        throw new BadRequestException(String.format(
+            "namespace(appId=%s, clusterName=%s, namespaceName=%s) current configurations length is [%s], configurations length limit for per namespace is [%s]",
+            namespace.getAppId(), namespace.getClusterName(), namespace.getNamespaceName(), configurationsLength,configurationsLengthLimit));
+      }
+    }
+
+    return true;
   }
 
 }

@@ -34,11 +34,13 @@ import com.ctrip.framework.apollo.common.exception.BadRequestException;
 import com.ctrip.framework.apollo.common.exception.NotFoundException;
 import com.ctrip.framework.apollo.common.utils.BeanUtils;
 import com.ctrip.framework.apollo.core.utils.StringUtils;
+import com.google.gson.Gson;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
@@ -54,6 +56,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class ItemController {
+
+  private static final Gson GSON = new Gson();
 
   private final ItemService itemService;
   private final NamespaceService namespaceService;
@@ -81,12 +85,8 @@ public class ItemController {
       throw BadRequestException.itemAlreadyExists(entity.getKey());
     }
 
-    if (bizConfig.isItemNumLimitEnabled()) {
-      int itemCount = itemService.findNonEmptyItemCount(entity.getNamespaceId());
-      if (itemCount >= bizConfig.itemNumLimit()) {
-        throw new BadRequestException("The maximum number of items (" + bizConfig.itemNumLimit() + ") for this namespace has been reached. Current item count is " + itemCount + ".");
-      }
-    }
+    checkItemNumLimit(entity);
+    checkNamespaceConfigurationsLengthLimit(entity, appId, clusterName, namespaceName);
 
     entity = itemService.save(entity);
     dto = BeanUtils.transform(ItemDTO.class, entity);
@@ -257,6 +257,39 @@ public class ItemController {
 
     List<ItemDTO> itemDTOS = BeanUtils.batchTransform(ItemDTO.class, itemPage.getContent());
     return new PageDTO<>(itemDTOS, pageable, itemPage.getTotalElements());
+  }
+
+
+
+  private boolean checkItemNumLimit(Item entity) {
+
+    if (bizConfig.isItemNumLimitEnabled()) {
+      int itemCount = itemService.findNonEmptyItemCount(entity.getNamespaceId());
+      if (itemCount >= bizConfig.itemNumLimit()) {
+        throw new BadRequestException("The maximum number of items (" + bizConfig.itemNumLimit() + ") for this namespace has been reached. Current item count is " + itemCount + ".");
+      }
+    }
+
+    return true;
+  }
+
+  private boolean checkNamespaceConfigurationsLengthLimit(Item entity, String appId, String clusterName, String namespaceName) {
+    if(bizConfig.isNamespaceConfigurationsLengthLimitEnabled()) {
+      Map<String, String> configurations = itemService.findNonEmptyItemsWithOrdered(entity.getNamespaceId());
+      configurations.put(entity.getKey(), entity.getValue());
+      String configuration = GSON.toJson(configurations);
+
+      int configurationsLength = configuration.length();
+      int configurationsLengthLimit = bizConfig.namespaceConfigurationsLengthLimit();
+
+      if (configurationsLength > configurationsLengthLimit) {
+        throw new BadRequestException(String.format(
+            "namespace(appId=%s, clusterName=%s, namespaceName=%s) current configurations length is [%s], configurations length limit for per namespace is [%s]",
+            appId, clusterName, namespaceName, configurationsLength,configurationsLengthLimit));
+      }
+    }
+
+    return true;
   }
 
 }

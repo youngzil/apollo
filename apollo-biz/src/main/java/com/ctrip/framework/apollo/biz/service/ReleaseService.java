@@ -182,7 +182,7 @@ public class ReleaseService {
         .getNamespaceName());
     long branchReleaseId = branchRelease == null ? 0 : branchRelease.getId();
 
-    Map<String, String> operateNamespaceItems = getNamespaceItems(namespace);
+    Map<String, String> operateNamespaceItems = itemService.findNonEmptyItemsWithOrdered(namespace.getId());
 
     Map<String, Object> operationContext = Maps.newLinkedHashMap();
     operationContext.put(ReleaseOperationContext.SOURCE_BRANCH, branchName);
@@ -201,7 +201,7 @@ public class ReleaseService {
 
     checkLock(namespace, isEmergencyPublish, operator);
 
-    Map<String, String> operateNamespaceItems = getNamespaceItems(namespace);
+    Map<String, String> operateNamespaceItems = itemService.findNonEmptyItemsWithOrdered(namespace.getId());
 
     Namespace parentNamespace = namespaceService.findParentNamespace(namespace);
 
@@ -265,7 +265,7 @@ public class ReleaseService {
 
     checkLock(namespace, isEmergencyPublish, operator);
 
-    Map<String, String> operateNamespaceItems = getNamespaceItems(namespace);
+    Map<String, String> operateNamespaceItems = itemService.findNonEmptyItemsWithOrdered(namespace.getId());
 
     Namespace parentNamespace = namespaceService.findParentNamespace(namespace);
 
@@ -419,19 +419,6 @@ public class ReleaseService {
     result.putAll(coverConfigurations);
 
     return result;
-  }
-
-  private Map<String, String> getNamespaceItems(Namespace namespace) {
-    List<Item> items = itemService.findItemsWithOrdered(namespace.getId());
-    Map<String, String> configurations = new LinkedHashMap<>();
-    for (Item item : items) {
-      if (StringUtils.isEmpty(item.getKey())) {
-        continue;
-      }
-      configurations.put(item.getKey(), item.getValue());
-    }
-
-    return configurations;
   }
 
   private Release createRelease(Namespace namespace, String name, String comment,

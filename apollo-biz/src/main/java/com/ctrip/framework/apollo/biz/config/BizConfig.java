@@ -43,6 +43,8 @@ public class BizConfig extends RefreshableConfig {
 
   private static final int DEFAULT_MAX_ITEM_NUM = 1000;
 
+  private static final int DEFAULT_NAMESPACE_CONFIGURATIONS_LENGTH = 5 * 1024 * 1024; // 5MB
+
   private static final int DEFAULT_APPNAMESPACE_CACHE_REBUILD_INTERVAL = 60; //60s
   private static final int DEFAULT_GRAY_RELEASE_RULE_SCAN_INTERVAL = 60; //60s
   private static final int DEFAULT_APPNAMESPACE_CACHE_SCAN_INTERVAL = 1; //1s
@@ -126,6 +128,15 @@ public class BizConfig extends RefreshableConfig {
   public int itemNumLimit() {
     int limit = getIntProperty("item.num.limit", DEFAULT_MAX_ITEM_NUM);
     return checkInt(limit, 5, Integer.MAX_VALUE, DEFAULT_MAX_ITEM_NUM);
+  }
+
+  public boolean isNamespaceConfigurationsLengthLimitEnabled() {
+    return getBooleanProperty("namespace.configurations.length.limit.enabled", false);
+  }
+
+  public int namespaceConfigurationsLengthLimit() {
+    int limit = getIntProperty("namespace.configurations.length.limit", DEFAULT_NAMESPACE_CONFIGURATIONS_LENGTH);
+    return checkInt(limit, 5, Integer.MAX_VALUE, DEFAULT_NAMESPACE_CONFIGURATIONS_LENGTH);
   }
 
   public Map<Long, Integer> namespaceValueLengthLimitOverride() {
