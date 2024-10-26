@@ -55,6 +55,7 @@ public class BizConfig extends RefreshableConfig {
   private static final int DEFAULT_RELEASE_MESSAGE_NOTIFICATION_BATCH_INTERVAL_IN_MILLI = 100;//100ms
   private static final int DEFAULT_LONG_POLLING_TIMEOUT = 60; //60s
   public static final int DEFAULT_RELEASE_HISTORY_RETENTION_SIZE = -1;
+  public static final int DEFAULT_RELEASE_HISTORY_RETENTION_DAYS = -1;
 
   private static final Gson GSON = new Gson();
 
@@ -191,6 +192,11 @@ public class BizConfig extends RefreshableConfig {
   public int releaseHistoryRetentionSize() {
     int count = getIntProperty("apollo.release-history.retention.size", DEFAULT_RELEASE_HISTORY_RETENTION_SIZE);
     return checkInt(count, 1, Integer.MAX_VALUE, DEFAULT_RELEASE_HISTORY_RETENTION_SIZE);
+  }
+
+  public int releaseHistoryRetentionDays() {
+    int count = getIntProperty("apollo.release-history.retention.days", DEFAULT_RELEASE_HISTORY_RETENTION_DAYS);
+    return checkInt(count, 1, Integer.MAX_VALUE, DEFAULT_RELEASE_HISTORY_RETENTION_DAYS);
   }
 
   public Map<String, Integer> releaseHistoryRetentionSizeOverride() {

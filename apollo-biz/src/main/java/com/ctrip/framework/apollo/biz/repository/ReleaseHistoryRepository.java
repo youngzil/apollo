@@ -17,6 +17,7 @@
 package com.ctrip.framework.apollo.biz.repository;
 
 import com.ctrip.framework.apollo.biz.entity.ReleaseHistory;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import org.springframework.data.domain.Page;
@@ -43,6 +44,8 @@ public interface ReleaseHistoryRepository extends PagingAndSortingRepository<Rel
   int batchDelete(String appId, String clusterName, String namespaceName, String operator);
 
   Page<ReleaseHistory> findByAppIdAndClusterNameAndNamespaceNameAndBranchNameOrderByIdDesc(String appId, String clusterName, String namespaceName, String branchName, Pageable pageable);
+
+  ReleaseHistory findFirstByAppIdAndClusterNameAndNamespaceNameAndBranchNameAndIdLessThanEqualAndDataChangeLastModifiedTimeBeforeOrderByIdDesc(String appId, String clusterName, String namespaceName, String branchName, long id, Date date);
 
   List<ReleaseHistory> findFirst100ByAppIdAndClusterNameAndNamespaceNameAndBranchNameAndIdLessThanEqualOrderByIdAsc(String appId, String clusterName, String namespaceName, String branchName, long maxId);
 

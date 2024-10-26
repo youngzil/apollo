@@ -27,6 +27,8 @@ import com.ctrip.framework.apollo.core.utils.ApolloThreadFactory;
 import com.ctrip.framework.apollo.tracer.Tracer;
 import com.google.common.collect.Queues;
 import com.google.gson.Gson;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
@@ -163,7 +165,7 @@ public class ReleaseHistoryService {
     return releaseHistoryRepository.batchDelete(appId, clusterName, namespaceName, operator);
   }
 
-  private Optional<Long> releaseHistoryRetentionMaxId(ReleaseHistory releaseHistory, int releaseHistoryRetentionSize) {
+  private Optional<Long> releaseHistoryRetentionMinId(ReleaseHistory releaseHistory, int releaseHistoryRetentionSize) {
     Page<ReleaseHistory> releaseHistoryPage = releaseHistoryRepository.findByAppIdAndClusterNameAndNamespaceNameAndBranchNameOrderByIdDesc(
         releaseHistory.getAppId(),
         releaseHistory.getClusterName(),
@@ -182,6 +184,24 @@ public class ReleaseHistoryService {
     );
   }
 
+  private Optional<Long> releaseHistoryRetentionMinIdByDays(ReleaseHistory releaseHistory, long retentionSizeMinId, int retentionDays) {
+
+    ReleaseHistory deletableMaxReleaseHistory = releaseHistoryRepository.findFirstByAppIdAndClusterNameAndNamespaceNameAndBranchNameAndIdLessThanEqualAndDataChangeLastModifiedTimeBeforeOrderByIdDesc(
+        releaseHistory.getAppId(),
+        releaseHistory.getClusterName(),
+        releaseHistory.getNamespaceName(),
+        releaseHistory.getBranchName(),
+        retentionSizeMinId,
+        getDaysAgo(retentionDays)
+    );
+
+    if (deletableMaxReleaseHistory == null) {
+      return Optional.empty();
+    }
+
+    return Optional.of(deletableMaxReleaseHistory.getId());
+  }
+
   private void cleanReleaseHistory(ReleaseHistory cleanRelease) {
     String appId = cleanRelease.getAppId();
     String clusterName = cleanRelease.getClusterName();
@@ -194,7 +214,15 @@ public class ReleaseHistoryService {
       return;
     }
 
-    Optional<Long> maxId = this.releaseHistoryRetentionMaxId(cleanRelease, retentionLimit);
+    Optional<Long> maxId = this.releaseHistoryRetentionMinId(cleanRelease, retentionLimit);
+    if (!maxId.isPresent()) {
+      return;
+    }
+
+    int retentionDays = bizConfig.releaseHistoryRetentionDays();
+    if(retentionDays > 0) {
+      maxId = releaseHistoryRetentionMinIdByDays(cleanRelease, maxId.get(), retentionDays);
+    }
     if (!maxId.isPresent()) {
       return;
     }
@@ -230,4 +258,10 @@ public class ReleaseHistoryService {
   void stopClean() {
     cleanStopped.set(true);
   }
+
+  public static Date getDaysAgo(int days) {
+    return Date.from(LocalDateTime.now().minusDays(days)
+                         .atZone(ZoneId.systemDefault()).toInstant());
+  }
+
 }
