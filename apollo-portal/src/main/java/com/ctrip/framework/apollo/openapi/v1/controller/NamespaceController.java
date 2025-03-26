@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
@@ -49,11 +50,10 @@ public class NamespaceController {
     this.namespaceOpenApiService = namespaceOpenApiService;
   }
 
-  @PreAuthorize(value = "@consumerPermissionValidator.hasCreateNamespacePermission(#request, #appId)")
+  @PreAuthorize(value = "@consumerPermissionValidator.hasCreateNamespacePermission(#appId)")
   @PostMapping(value = "/openapi/v1/apps/{appId}/appnamespaces")
   public OpenAppNamespaceDTO createNamespace(@PathVariable String appId,
-                                             @RequestBody OpenAppNamespaceDTO appNamespaceDTO,
-                                             HttpServletRequest request) {
+                                             @RequestBody OpenAppNamespaceDTO appNamespaceDTO) {
 
     if (!Objects.equals(appId, appNamespaceDTO.getAppId())) {
       throw new BadRequestException("AppId not equal. AppId in path = %s, AppId in payload = %s", appId,
@@ -81,21 +81,22 @@ public class NamespaceController {
 
   @GetMapping(value = "/openapi/v1/envs/{env}/apps/{appId}/clusters/{clusterName}/namespaces")
   public List<OpenNamespaceDTO> findNamespaces(@PathVariable String appId, @PathVariable String env,
-                                               @PathVariable String clusterName) {
-    return this.namespaceOpenApiService.getNamespaces(appId, env, clusterName);
+                                               @PathVariable String clusterName,
+                                               @RequestParam(defaultValue = "true") boolean fillItemDetail) {
+    return this.namespaceOpenApiService.getNamespaces(appId, env, clusterName, fillItemDetail);
   }
 
   @GetMapping(value = "/openapi/v1/envs/{env}/apps/{appId}/clusters/{clusterName}/namespaces/{namespaceName:.+}")
   public OpenNamespaceDTO loadNamespace(@PathVariable String appId, @PathVariable String env,
-                                        @PathVariable String clusterName, @PathVariable String
-                                            namespaceName) {
-    return this.namespaceOpenApiService.getNamespace(appId, env, clusterName, namespaceName);
+                                        @PathVariable String clusterName, @PathVariable String namespaceName,
+                                        @RequestParam(defaultValue = "true") boolean fillItemDetail) {
+    return this.namespaceOpenApiService.getNamespace(appId, env, clusterName, namespaceName, fillItemDetail);
   }
 
   @GetMapping(value = "/openapi/v1/envs/{env}/apps/{appId}/clusters/{clusterName}/namespaces/{namespaceName}/lock")
   public OpenNamespaceLockDTO getNamespaceLock(@PathVariable String appId, @PathVariable String env,
                                                @PathVariable String clusterName, @PathVariable
-                                                   String namespaceName) {
+                                               String namespaceName) {
     return this.namespaceOpenApiService.getNamespaceLock(appId, env, clusterName, namespaceName);
   }
 

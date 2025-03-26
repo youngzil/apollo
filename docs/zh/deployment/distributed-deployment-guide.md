@@ -117,17 +117,30 @@ EUREKA_INSTANCE_IP_ADDRESS=1.2.3.4
 
 可以分别修改`apollo-configservice`和`apollo-adminservice`的startup.sh，通过JVM System Property传入-D参数，也可以通过OS Environment Variable传入，下面的例子会指定注册的URL为`http://1.2.3.4:8080`。
 
+> 注：apollo-configservice和apollo-adminservice默认注册端口分别为8080、8090
+
+
 JVM System Property示例：
 
 ```properties
+# apollo-configservice
 -Deureka.instance.homePageUrl=http://1.2.3.4:8080
+-Deureka.instance.preferIpAddress=false
+
+# apollo-adminservice
+-Deureka.instance.homePageUrl=http://1.2.3.4:8090
 -Deureka.instance.preferIpAddress=false
 ```
 
 OS Environment Variable示例：
 
 ```properties
+# apollo-configservice
 EUREKA_INSTANCE_HOME_PAGE_URL=http://1.2.3.4:8080
+EUREKA_INSTANCE_PREFER_IP_ADDRESS=false
+
+# apollo-adminservice
+EUREKA_INSTANCE_HOME_PAGE_URL=http://1.2.3.4:8090
 EUREKA_INSTANCE_PREFER_IP_ADDRESS=false
 ```
 
@@ -213,8 +226,6 @@ Apollo服务端共需要两个数据库：`ApolloPortalDB`和`ApolloConfigDB`，
 
 ### 2.1.1 创建ApolloPortalDB
 
-可以根据实际情况选择通过手动导入SQL或是通过[Flyway](https://flywaydb.org/)自动导入SQL创建。
-
 #### 2.1.1.1 手动导入SQL创建
 
 通过各种MySQL客户端导入[apolloportaldb.sql](https://github.com/apolloconfig/apollo/blob/master/scripts/sql/profiles/mysql-default/apolloportaldb.sql)即可。
@@ -224,14 +235,7 @@ Apollo服务端共需要两个数据库：`ApolloPortalDB`和`ApolloConfigDB`，
 source /your_local_path/scripts/sql/profiles/mysql-default/apolloportaldb.sql
 ```
 
-#### 2.1.1.2 通过Flyway导入SQL创建
-
-> 需要1.3.0及以上版本
-
-1. 根据实际情况修改[flyway-portaldb.properties](https://github.com/apolloconfig/apollo/blob/master/scripts/flyway/flyway-portaldb.properties)中的`flyway.user`、`flyway.password`和`flyway.url`配置
-2. 在apollo项目根目录下执行`mvn -N -Pportaldb flyway:migrate`
-
-#### 2.1.1.3 验证
+#### 2.1.1.2 验证
 
 导入成功后，可以通过执行以下sql语句来验证：
 ```sql
@@ -246,8 +250,6 @@ select `Id`, `Key`, `Value`, `Comment` from `ApolloPortalDB`.`ServerConfig` limi
 
 ### 2.1.2 创建ApolloConfigDB
 
-可以根据实际情况选择通过手动导入SQL或是通过[Flyway](https://flywaydb.org/)自动导入SQL创建。
-
 #### 2.1.2.1 手动导入SQL
 
 通过各种MySQL客户端导入[apolloconfigdb.sql](https://github.com/apolloconfig/apollo/blob/master/scripts/sql/profiles/mysql-default/apolloconfigdb.sql)即可。
@@ -257,14 +259,7 @@ select `Id`, `Key`, `Value`, `Comment` from `ApolloPortalDB`.`ServerConfig` limi
 source /your_local_path/scripts/sql/profiles/mysql-default/apolloconfigdb.sql
 ```
 
-#### 2.1.2.2 通过Flyway导入SQL
-
-> 需要1.3.0及以上版本
-
-1. 根据实际情况修改[flyway-configdb.properties](https://github.com/apolloconfig/apollo/blob/master/scripts/flyway/flyway-configdb.properties)中的`flyway.user`、`flyway.password`和`flyway.url`配置
-2. 在apollo项目根目录下执行`mvn -N -Pconfigdb flyway:migrate`
-
-#### 2.1.2.3 验证
+#### 2.1.2.2 验证
 
 导入成功后，可以通过执行以下sql语句来验证：
 ```sql
@@ -913,6 +908,7 @@ $ helm uninstall -n your-namespace apollo-service-dev
 | `configService.image.pullPolicy`                | Image pull policy of apollo-configservice | `IfNotPresent` |
 | `configService.imagePullSecrets`                | Image pull secrets of apollo-configservice | `[]` |
 | `configService.service.fullNameOverride` | Override the service name for apollo-configservice | `nil` |
+| `configService.service.annotations` | The annotations of the service for apollo-configservice. _(chart version >= 0.9.0)_ | `{}` |
 | `configService.service.port` | The port for the service of apollo-configservice | `8080` |
 | `configService.service.targetPort` | The target port for the service of apollo-configservice | `8080` |
 | `configService.service.type` | The service type of apollo-configservice                     | `ClusterIP` |
@@ -943,6 +939,7 @@ $ helm uninstall -n your-namespace apollo-service-dev
 | `adminService.image.pullPolicy`                | Image pull policy of apollo-adminservice | `IfNotPresent` |
 | `adminService.imagePullSecrets`                | Image pull secrets of apollo-adminservice | `[]` |
 | `adminService.service.fullNameOverride` | Override the service name for apollo-adminservice | `nil` |
+| `adminService.service.annotations` | The annotations of the service for apollo-adminservice. _(chart version >= 0.9.0)_ | `{}` |
 | `adminService.service.port` | The port for the service of apollo-adminservice | `8090` |
 | `adminService.service.targetPort` | The target port for the service of apollo-adminservice | `8090` |
 | `adminService.service.type` | The service type of apollo-adminservice                     | `ClusterIP` |
@@ -1101,6 +1098,7 @@ $ helm uninstall -n your-namespace apollo-portal
 | `image.pullPolicy`                | Image pull policy of apollo-portal | `IfNotPresent` |
 | `imagePullSecrets`                | Image pull secrets of apollo-portal | `[]` |
 | `service.fullNameOverride` | Override the service name for apollo-portal | `nil` |
+| `service.annotations` | The annotations of the service for apollo-portal. _(chart version >= 0.9.0)_ | `{}` |
 | `service.port` | The port for the service of apollo-portal | `8070` |
 | `service.targetPort` | The target port for the service of apollo-portal | `8070` |
 | `service.type` | The service type of apollo-portal                     | `ClusterIP` |
@@ -1251,14 +1249,14 @@ config:
           base: "dc=example,dc=org"
           username: "cn=admin,dc=example,dc=org"
           password: "password"
-          searchFilter: "(uid={0})"
+          search-filter: "(uid={0})"
           urls:
           - "ldap://xxx.somedomain.com:389"
       ldap:
         mapping:
-          objectClass: "inetOrgPerson"
-          loginId: "uid"
-          userDisplayName: "cn"
+          object-class: "inetOrgPerson"
+          login-id: "uid"
+          user-display-name: "cn"
           email: "mail"
 ```
 
@@ -1268,7 +1266,7 @@ config:
 
 ### 2.4.2 基于内置的Eureka服务发现
 
-感谢[AiotCEO](https://github.com/AiotCEO)提供了k8s的部署支持，使用说明可以参考[apollo-on-kubernetes](https://github.com/apolloconfig/apollo/blob/master/scripts/apollo-on-kubernetes/README.md)。
+感谢[AiotCEO](https://github.com/AiotCEO)提供了k8s的部署支持，使用说明可以参考[apollo-on-kubernetes](https://github.com/apolloconfig/apollo-on-kubernetes)。
 
 感谢[qct](https://github.com/qct)提供的Helm Chart部署支持，使用说明可以参考[qct/apollo-helm](https://github.com/qct/apollo-helm)。
 
@@ -1400,7 +1398,6 @@ portal上“帮助”链接的地址，默认是Apollo github的wiki首页，可
 
 修改该参数可能会影响搜索功能的性能，因此在修改之前应该进行充分的测试，根据实际业务需求和系统资源情况，适当调整`apollo.portal.search.perEnvMaxResults`的值，以平衡性能和搜索结果的数量
 
-
 ## 3.2 调整ApolloConfigDB配置
 配置项统一存储在ApolloConfigDB.ServerConfig表中，需要注意每个环境的ApolloConfigDB.ServerConfig都需要单独配置，修改完一分钟实时生效。
 
@@ -1464,6 +1461,15 @@ http://5.5.5.5:8080/eureka/,http://6.6.6.6:8080/eureka/
 
 > 这个配置用于兼容未开启缓存时的配置获取逻辑，因为 MySQL 数据库查询默认字符串匹配大小写不敏感。如果开启了缓存，且用了 MySQL，建议配置 true。如果你 Apollo 使用的数据库字符串匹配大小写敏感，那么必须保持默认配置 false，否则将获取不到配置。
 
+#### 3.2.3.2 config-service.cache.stats.enabled - 是否开启缓存metric统计功能
+> 适用于2.4.0及以上版本
+
+> `config-service.cache.stats.enabled` 配置调整必须重启 config service 才能生效
+
+该配置作用于`config-service.cache.stats.enabled`为 true 时，用于控制开启缓存统计功能。  
+默认为 false，即不会开启缓存统计功能，当配置为 true 时，开启缓存metric统计功能  
+指标查看参考[监控相关-5.2 Metrics](zh/design/apollo-design#5.2-Metrics)，如`http://${someIp:somePort}/prometheus`
+
 ### 3.2.4 item.key.length.limit - 配置项 key 最大长度限制
 
 默认配置是128。
@@ -1472,9 +1478,18 @@ http://5.5.5.5:8080/eureka/,http://6.6.6.6:8080/eureka/
 
 默认配置是20000。
 
-#### 3.2.5.1 namespace.value.length.limit.override - namespace 的配置项 value 最大长度限制
+#### 3.2.5.1 appid.value.length.limit.override - appId 维度的配置项 value 最大长度限制
+此配置用来覆盖 `item.value.length.limit` 的配置，做到控制 appId 粒度下的 value 最大长度限制，配置的值是一个 json 格式，json 的 key 为 appId，格式如下：
+```
+appid.value.length.limit.override = {"appId-demo1":200,"appId-demo2":300}
+```
+以上配置指定了 `appId-demo1` 下的所有 namespace 中的 value 最大长度限制为 200，`appId-demo2` 下的所有 namespace 中的 value 最大长度限制为 300
 
-此配置用来覆盖 `item.value.length.limit` 的配置，做到细粒度控制 namespace 的 value 最大长度限制，配置的值是一个 json 格式，json 的 key 为 namespace 在数据库中的 id 值，格式如下：
+当 `appId-demo1` 或 `appId-demo2` 下新建的 namespace 时，会自动继承该 namespace 的 value 最大长度限制，除非该 namespace 的配置项 value 最大长度限制被 `namespace.value.length.limit.override` 覆盖。
+
+#### 3.2.5.2 namespace.value.length.limit.override - namespace 的配置项 value 最大长度限制
+
+此配置用来覆盖 `item.value.length.limit` 或者 `appid.value.length.limit.override` 的配置，做到细粒度控制 namespace 的 value 最大长度限制，配置的值是一个 json 格式，json 的 key 为 namespace 在数据库中的 id 值，格式如下：
 ```
 namespace.value.length.limit.override = {1:200,3:20}
 ```

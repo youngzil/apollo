@@ -23,7 +23,7 @@ import com.ctrip.framework.apollo.common.entity.App;
 import com.ctrip.framework.apollo.common.entity.AppNamespace;
 import com.ctrip.framework.apollo.core.enums.ConfigFileFormat;
 import com.ctrip.framework.apollo.portal.AbstractUnitTest;
-import com.ctrip.framework.apollo.portal.component.PermissionValidator;
+import com.ctrip.framework.apollo.portal.component.UserPermissionValidator;
 import com.ctrip.framework.apollo.portal.entity.bo.ItemBO;
 import com.ctrip.framework.apollo.portal.entity.bo.NamespaceBO;
 import com.ctrip.framework.apollo.portal.entity.bo.UserInfo;
@@ -65,7 +65,7 @@ public class ConfigsExportServiceTest extends AbstractUnitTest {
   @Mock
   private NamespaceService          namespaceService;
   @Mock
-  private PermissionValidator       permissionValidator;
+  private UserPermissionValidator userPermissionValidator;
   @Mock
   private UserInfoHolder            userInfoHolder;
   @Mock
@@ -83,6 +83,18 @@ public class ConfigsExportServiceTest extends AbstractUnitTest {
 
   @Test
   public void testNamespaceExportImport() throws FileNotFoundException {
+    // Test with fillItemDetail = true
+    testExportImportScenario(true);
+  }
+
+  @Test
+  public void testNamespaceExportImportWithFillItemDetail() throws FileNotFoundException {
+    // Test with fillItemDetail = false
+    testExportImportScenario(false);
+  }
+
+  private void testExportImportScenario(boolean fillItemDetail) throws FileNotFoundException {
+
     File temporaryFolder = Files.newTemporaryFolder();
     temporaryFolder.deleteOnExit();
     String filePath = temporaryFolder + File.separator + "export.zip";
@@ -143,13 +155,13 @@ public class ConfigsExportServiceTest extends AbstractUnitTest {
 
     when(appService.findAll()).thenReturn(exportApps);
     when(appNamespaceService.findAll()).thenReturn(appNamespaces);
-    when(permissionValidator.isAppAdmin(any())).thenReturn(true);
+    when(userPermissionValidator.isAppAdmin(any())).thenReturn(true);
     when(clusterService.findClusters(env, appId1)).thenReturn(app1Clusters);
     when(clusterService.findClusters(env, appId2)).thenReturn(app2Clusters);
-    when(namespaceService.findNamespaceBOs(appId1, Env.DEV, clusterName1, false)).thenReturn(app1Cluster1Namespace);
-    when(namespaceService.findNamespaceBOs(appId1, Env.DEV, clusterName2, false)).thenReturn(app1Cluster2Namespace);
-    when(namespaceService.findNamespaceBOs(appId2, Env.DEV, clusterName1, false)).thenReturn(app2Cluster1Namespace);
-    when(namespaceService.findNamespaceBOs(appId2, Env.DEV, clusterName2, false)).thenReturn(app2Cluster2Namespace);
+    when(namespaceService.findNamespaceBOs(appId1, Env.DEV, clusterName1, fillItemDetail, false)).thenReturn(app1Cluster1Namespace);
+    when(namespaceService.findNamespaceBOs(appId1, Env.DEV, clusterName2, fillItemDetail, false)).thenReturn(app1Cluster2Namespace);
+    when(namespaceService.findNamespaceBOs(appId2, Env.DEV, clusterName1, fillItemDetail, false)).thenReturn(app2Cluster1Namespace);
+    when(namespaceService.findNamespaceBOs(appId2, Env.DEV, clusterName2, fillItemDetail, false)).thenReturn(app2Cluster2Namespace);
 
     FileOutputStream fileOutputStream = new FileOutputStream(filePath);
 
@@ -186,10 +198,12 @@ public class ConfigsExportServiceTest extends AbstractUnitTest {
 
     verify(clusterService, times(4)).createCluster(any(), any());
 
-    verify(namespaceService, times(6)).createNamespace(any(), any());
-    verify(roleInitializationService,times(6)).initNamespaceRoles(any(), any(), anyString());
-    verify(roleInitializationService,times(6)).initNamespaceEnvRoles(any(), any(), anyString());
-    verify(itemService, times(12)).createItem(any(), any(), any(), any(), any());
+    if(fillItemDetail){
+      verify(namespaceService, times(6)).createNamespace(any(), any());
+      verify(roleInitializationService,times(6)).initNamespaceRoles(any(), any(), anyString());
+      verify(roleInitializationService,times(6)).initNamespaceEnvRoles(any(), any(), anyString());
+      verify(itemService, times(12)).createItem(any(), any(), any(), any(), any());
+    }
   }
 
   private App genApp(String name, String appId, String orgId, String orgName) {

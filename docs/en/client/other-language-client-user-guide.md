@@ -34,7 +34,7 @@ Since the cache has a delay of at most one second, if you need to work with conf
 
 The Http interface returns JSON format, UTF-8 encoding, which contains all the configuration items in the corresponding namespace.
 
-Return content Sample is as follows.
+If the namespace is of type `properties`, the return content sample is as follows:
 
 ```json
 {
@@ -42,6 +42,15 @@ Return content Sample is as follows.
     "portal.elastic.cluster.name": "hermes-es-fws"
 }
 ```
+
+If the namespace is not of type `properties`, the return content sample is as follows:
+```json
+{
+    "content": "{\"portal.elastic.document.type\":\"biz\",\"portal.elastic.cluster.name\":\"hermes-es-fws\"}"
+}
+```
+
+> You can get the raw configuration content without escaping via `{config_server_url}/configfiles/raw/{appId}/{clusterName}/{namespaceName}?ip={clientIp}`.
 
 > The configuration in the form of properties can be obtained via `{config_server_url}/configfiles/{appId}/{clusterName}/{namespaceName}?ip={clientIp}`
 
@@ -129,7 +138,7 @@ Once you have the notifications Map, you can request services. Here we describe 
 If the notificationId is found to be older than the server, the latest notificationId of the corresponding namespace, HttpStatus 200, will be returned directly. 
 5. After the client gets the server side return, determine the return HttpStatus .
 6. If the returned HttpStatus is 304, that the configuration has not changed, re-execute step 1.
-7. If the returned HttpStauts is 200, the configuration has changed, for the change of namespace to pull configuration from the server again, see [1.3 Read configuration from Apollo through the Http interface without cache](en/client/other-language-client-user-guide?id=_13-reading-configuration-from-apollo-via-http-interface-without-cache). Also update the notificationId in the notifications map. re-run step 1.
+7. If the returned HttpStatus is 200, the configuration has changed, for the change of namespace to pull configuration from the server again, see [1.3 Read configuration from Apollo through the Http interface without cache](en/client/other-language-client-user-guide?id=_13-reading-configuration-from-apollo-via-http-interface-without-cache). Also update the notificationId in the notifications map. re-run step 1.
 
 
 ### 1.4.2 Http interface description

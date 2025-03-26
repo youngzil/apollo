@@ -13,6 +13,7 @@
   - [Distributed Deployment Guide](en/deployment/distributed-deployment-guide.md)
   - Deployment By Third-party Tool 
     - [Install the HA Apollo cluster in Rainbond with one-click](en/deployment/third-party-tool-rainbond.md)
+    - [Quickly deploy Apollo based on the aaPanel](en/deployment/third-party-tool-btpanel.md)
 
 - Admin Guide
   - [Apollo Usage Guide](en/portal/apollo-user-guide.md)
@@ -30,6 +31,7 @@
   - [PHP Client Usage Guide](en/client/php-sdks-user-guide.md)
   - [C Client Usage Guide](en/client/c-sdks-user-guide.md)
   - [Rust Client Usage Guide](en/client/rust-sdks-user-guide.md)
+  - [K8S ConfigMap Integration Usage Guide](en/client/k8s-configmap-user-guide.md)
   - [HTTP API Guide](en/client/other-language-client-user-guide.md)
 
 - Extension Guide

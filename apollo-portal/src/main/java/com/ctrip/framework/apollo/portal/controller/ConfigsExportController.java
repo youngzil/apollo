@@ -78,7 +78,7 @@ public class ConfigsExportController {
    *   application.json
    * </pre>
    */
-  @PreAuthorize(value = "!@permissionValidator.shouldHideConfigToCurrentUser(#appId, #env, #namespaceName)")
+  @PreAuthorize(value = "!@userPermissionValidator.shouldHideConfigToCurrentUser(#appId, #env, #clusterName, #namespaceName)")
   @GetMapping("/apps/{appId}/envs/{env}/clusters/{clusterName}/namespaces/{namespaceName}/items/export")
   public void exportItems(@PathVariable String appId, @PathVariable String env,
                                   @PathVariable String clusterName, @PathVariable String namespaceName,
@@ -93,7 +93,7 @@ public class ConfigsExportController {
     }
 
     NamespaceBO namespaceBO = namespaceService.loadNamespaceBO(appId, Env.valueOf
-        (env), clusterName, namespaceName, false);
+        (env), clusterName, namespaceName, true, false);
 
     //generate a file.
     res.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment;filename=" + fileName);
@@ -111,7 +111,7 @@ public class ConfigsExportController {
    * Export all configs in a compressed file. Just export namespace which current exists read permission. The permission
    * check in service.
    */
-  @PreAuthorize(value = "@permissionValidator.isSuperAdmin()")
+  @PreAuthorize(value = "@userPermissionValidator.isSuperAdmin()")
   @GetMapping("/configs/export")
   public void exportAll(@RequestParam(value = "envs") String envs,
                         HttpServletRequest request, HttpServletResponse response) throws IOException {

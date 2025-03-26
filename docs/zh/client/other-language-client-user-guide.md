@@ -31,13 +31,22 @@
 ### 1.2.2 Http接口返回格式
 该Http接口返回的是JSON格式、UTF-8编码，包含了对应namespace中所有的配置项。
 
-返回内容Sample如下：
+若是properties类型的namespace，返回内容Sample如下：
 ```json
 {
     "portal.elastic.document.type":"biz",
     "portal.elastic.cluster.name":"hermes-es-fws"
 }
 ```
+
+若不是properties类型的namespace，返回内容Sample如下（content是namespace的内容）：
+```json
+{
+    "content": "{\"portal.elastic.document.type\":\"biz\",\"portal.elastic.cluster.name\":\"hermes-es-fws\"}"
+}
+```
+
+> 通过`{config_server_url}/configfiles/raw/{appId}/{clusterName}/{namespaceName}?ip={clientIp}`可以获取到原始的配置内容，不会进行转义。
 
 > 通过`{config_server_url}/configfiles/{appId}/{clusterName}/{namespaceName}?ip={clientIp}`可以获取到properties形式的配置
 
@@ -117,7 +126,7 @@ Apollo提供了基于Http long polling的配置更新推送通知，第三方客
 4. 如果传过来的notifications信息中发现有notificationId比服务端老，则直接返回对应namespace的最新notificationId, HttpStatus 200。
 5. 客户端拿到服务端返回后，判断返回的HttpStatus
 6. 如果返回的HttpStatus是304，说明配置没有变化，重新执行第1步
-7. 如果返回的HttpStauts是200，说明配置有变化，针对变化的namespace重新去服务端拉取配置，参见[1.3 通过不带缓存的Http接口从Apollo读取配置](#_13-%E9%80%9A%E8%BF%87%E4%B8%8D%E5%B8%A6%E7%BC%93%E5%AD%98%E7%9A%84http%E6%8E%A5%E5%8F%A3%E4%BB%8Eapollo%E8%AF%BB%E5%8F%96%E9%85%8D%E7%BD%AE)。同时更新notifications map中的notificationId。重新执行第1步。
+7. 如果返回的HttpStatus是200，说明配置有变化，针对变化的namespace重新去服务端拉取配置，参见[1.3 通过不带缓存的Http接口从Apollo读取配置](#_13-%E9%80%9A%E8%BF%87%E4%B8%8D%E5%B8%A6%E7%BC%93%E5%AD%98%E7%9A%84http%E6%8E%A5%E5%8F%A3%E4%BB%8Eapollo%E8%AF%BB%E5%8F%96%E9%85%8D%E7%BD%AE)。同时更新notifications map中的notificationId。重新执行第1步。
 
 
 ### 1.4.2 Http接口说明

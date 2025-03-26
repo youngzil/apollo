@@ -25,6 +25,7 @@ import com.ctrip.framework.apollo.portal.entity.vo.SystemInfo;
 import com.ctrip.framework.apollo.portal.environment.Env;
 import com.ctrip.framework.apollo.portal.environment.PortalMetaDomainService;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +65,7 @@ public class SystemInfoController {
     restTemplate = restTemplateFactory.getObject();
   }
 
-  @PreAuthorize(value = "@permissionValidator.isSuperAdmin()")
+  @PreAuthorize(value = "@userPermissionValidator.isSuperAdmin()")
   @GetMapping
   public SystemInfo getSystemInfo() {
     SystemInfo systemInfo = new SystemInfo();
@@ -85,7 +86,7 @@ public class SystemInfoController {
     return systemInfo;
   }
 
-  @PreAuthorize(value = "@permissionValidator.isSuperAdmin()")
+  @PreAuthorize(value = "@userPermissionValidator.isSuperAdmin()")
   @GetMapping(value = "/health")
   public Health checkHealth(@RequestParam String instanceId) {
     List<Env> allEnvs = portalSettings.getAllEnvs();
@@ -145,6 +146,6 @@ public class SystemInfoController {
   }
 
   private boolean isValidVersion(String version) {
-    return !version.equals("java-null");
+    return !Objects.equals(version, "java-null");
   }
 }

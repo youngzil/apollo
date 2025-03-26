@@ -76,6 +76,72 @@ After the project is created, there are no editing and publishing permissions as
 3. Assign publish privileges
    * ![namespace-publish-permission](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/namespace-publish-permission.png)
 
+### 1.2.3 Configuring permissions for different dimensions
+
+Regarding Apollo's configuration permissions, the permissions were bound to the namespace during the initial design. Because Apollo's permission management itself is relatively flexible, it can be expanded on this basis.
+Design of main entity classes based on Apollo [E-R Diagram](/docs/en/design/apollo-design.md?id=_14-e-r-diagram)，
+We can think of Namespace as the smallest unit of permissions, and App as the largest unit of permissions.
+In the middle are Env and Cluster, so we can manage permissions in different dimensions.
+
+| App | Env | Cluster | Namespace | Model | Impl |
+| --- | --- | --- | --- | --- |------|
+| ☑️ |  |  |  | App → * | no   |
+| ☑️ |  |  | ☑️ | App → Namespace | yes  |
+| ☑️ | ☑️ |  |  | App + Env → * | no   |
+| ☑️ | ☑️ |  | ☑️ | App + Env → Namespace | yes  |
+| ☑️ | ☑️ | ☑️ |  | App + Env + Cluster → * | yes  |
+| ☑️ | ☑️ | ☑️ | ☑️ | App + Env + Cluster → Namespace | no    |
+
+Explanation of different permission models：
+
+| Model | Target | PermissionType (e.g. Modify) | TargetId |
+| --- | --- | --- | --- |
+| App → * | All namespaces of App |  |  |
+| App → Namespace | All namespaces with specified names under App | ModifyNamespace | App+Namespace |
+| App + Env → * | All namespaces under App's env |  |  |
+| App + Env → Namespace | All namespaces with specified names under App's env | ModifyNamespace | App+Namespace+Env |
+| App + Env + Cluster → * | All namespaces of the cluster in App's env | ModifyNamespaceInCluster | App+Env+ClusterName |
+| App + Env + Cluster → Namespace | The namespace with the specified name under the cluster in App's env |  |  |
+
+#### 1.2.3.1 All namespaces of App
+
+1. Click the authorization button of the application
+   * ![ns-permission-app-allns-entry](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/ns-permission-app-allns-entry.png)
+
+2. Select "All environments"
+   * ![ns-permission-app-allns-select](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/ns-permission-app-allns-select.png)
+
+3. Assign the modify permission
+   * ![namespace-permission-edit](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/namespace-permission-edit.png)
+
+4. Assign publish privileges
+   * ![namespace-publish-permission](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/namespace-publish-permission.png)
+
+#### 1.2.3.2 All namespaces of App's env
+
+1. Click the authorization button of the application
+   * ![ns-permission-app-allns-entry](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/ns-permission-app-allns-entry.png)
+
+2. Select the env
+   * ![ns-permission-app-env-ns-select](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/ns-permission-app-env-ns-select.png)
+
+3. Assign the modify permission
+   * ![namespace-permission-edit](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/namespace-permission-edit.png)
+
+4. Assign publish privileges
+   * ![namespace-publish-permission](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/namespace-publish-permission.png)
+
+#### 1.2.3.3 All namespaces of the cluster in App's env
+
+1. Click "Manage Cluster" to enter the management cluster page
+   * ![manage-cluster-entry](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/manage-cluster-entry.png)
+
+2. Click the authorization button of the Cluster you want to manage
+   * ![ns-permission-app-env-cluster-entry](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/ns-permission-app-env-cluster-entry.png)
+
+3. Edit permissions
+   * ![ns-permission-app-env-cluster-edit](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/ns-permission-app-env-cluster-edit.png)
+
 ## 1.3 Adding configuration items
 
 To edit the configuration, you need to have the edit permission of this Namespace. If you find that there is no Add Configuration button, you can find the project administrator to authorize it.
@@ -511,7 +577,7 @@ Please note that modifications to system parameters may affect the performance o
 
 
 
-## 6.4 单个命名空间下的配置项数量限制
+## 6.4 Parameter settings for limiting the number of namespaces in the appld+cluster dimension
 
 Starting from version 2.4.0, apollo-portal provides the function of checking the upper limit of the number of namespaces that can be created under the appld+cluster dimension. This function is disabled by default and needs to be enabled by configuring the system `namespace.num.limit.enabled`. At the same time, the system parameter `namespace.num.limit` is provided to dynamically configure the upper limit of the number of Namespaces under the appld+cluster dimension. The default value is 200. Considering that some basic components such as gateways, message queues, Redis, and databases require special processing, a new system parameter `namespace.num.limit.white` is added to configure the verification whitelist, which is not affected by the upper limit of the number of Namespaces.
 
@@ -520,20 +586,28 @@ Starting from version 2.4.0, apollo-portal provides the function of checking the
 1. Log in to the Apollo Configuration Center interface with a super administrator account.
 2. Go to the `Administrator Tools - System Parameters - ConfigDB Configuration Management` page and add or modify the `namespace.num.limit.enabled` configuration item to true/false to enable/disable this function. It is disabled by default.
 
-[//]: # (   ![item-num-limit-enabled]&#40;https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/namespace-num-limit-enabled.png&#41;)
-![item-num-limit-enabled](../../../doc/images/namespace-num-limit-enabled.png)
+   ![item-num-limit-enabled](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/namespace-num-limit-enabled.png)
 
 3. Go to the `Administrator Tools - System Parameters - ConfigDB Configuration Management` page to add or modify the `namespace.num.limit` configuration item to configure the upper limit of the number of namespaces under a single appld+cluster. The default value is 200
 
-[//]: # (   ![item-num-limit]&#40;https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/namespace-num-limit.png&#41;)
-![item-num-limit](../../../doc/images/namespace-num-limit.png)
+   ![item-num-limit](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/namespace-num-limit.png)
 
 4. Go to `Administrator Tools - System Parameters - ConfigDB Configuration Management` page to add or modify the `namespace.num.limit.white` configuration item to configure the whitelist for namespace quantity limit verification. Multiple AppIds are separated by English commas.
 
-[//]: # (   ![item-num-limit]&#40;https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/namespace-num-limit-white.png&#41;)
-![item-num-limit](../../../doc/images/namespace-num-limit-white.png)
+   ![item-num-limit](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/namespace-num-limit-white.png)
 
 
+## 6.5 Limitation on the number of configuration items in a single namespace
+Starting from version 2.4.0, apollo-portal provides the function of limiting the number of configuration items in a single namespace. This function is disabled by default and needs to be enabled by configuring the system `item.num.limit.enabled`. At the same time, the system parameter `item.num.limit` is provided to dynamically configure the upper limit of the number of items in a single Namespace.
+
+**Setting method：**
+1. Log in to the Apollo Configuration Center interface with a super administrator account
+2. Go to the `Administrator Tools - System Parameters - ConfigDB Configuration Management` page and add or modify the `item.num.limit.enabled` configuration item to true/false to enable/disable this function.
+
+   ![item-num-limit-enabled](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/item-num-limit-enabled.png)
+3. Go to the `Admin Tools - System Parameters - ConfigDB Configuration Management` page and add or modify the `item.num.limit` configuration item to configure the upper limit of the number of items under a single Namespace.
+
+   ![item-num-limit](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/item-num-limit.png)
 
 
 # VII. Best practices

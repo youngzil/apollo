@@ -117,17 +117,29 @@ EUREKA_INSTANCE_IP_ADDRESS=1.2.3.4
 
 You can modify the startup.sh of `apollo-configservice` and `apollo-adminservice` respectively, passing in the -D parameter via JVM System Property, or via OS Environment Variable, the following example will specify the URL to register URL as `http://1.2.3.4:8080`.
 
+>Note: The default registration ports for apollo-configservice and apollo-adminservice are 8080 and 8090 respectively.
+
 JVM System Property example.
 
 ```properties
+# apollo-configservice
 -Deureka.instance.homePageUrl=http://1.2.3.4:8080
+-Deureka.instance.preferIpAddress=false
+
+# apollo-adminservice
+-Deureka.instance.homePageUrl=http://1.2.3.4:8090
 -Deureka.instance.preferIpAddress=false
 ```
 
 OS Environment Variable Example.
 
 ```properties
+# apollo-configservice
 EUREKA_INSTANCE_HOME_PAGE_URL=http://1.2.3.4:8080
+EUREKA_INSTANCE_PREFER_IP_ADDRESS=false
+
+# apollo-adminservice
+EUREKA_INSTANCE_HOME_PAGE_URL=http://1.2.3.4:8090
 EUREKA_INSTANCE_PREFER_IP_ADDRESS=false
 ```
 
@@ -215,8 +227,6 @@ Note that ApolloPortalDB only needs to deploy one in the production environment,
 
 ### 2.1.1 Creating ApolloPortalDB
 
-You can choose to create it by manually importing SQL or by automatically importing SQL via [Flyway](https://flywaydb.org/) depending on the actual situation.
-
 #### 2.1.1.1 Manual SQL Import
 
 You can import [apolloportaldb.sql](https://github.com/apolloconfig/apollo/blob/master/scripts/sql/profiles/mysql-default/apolloportaldb.sql) through various MySQL clients.
@@ -227,14 +237,7 @@ Using the native MySQL client as an example.
 source /your_local_path/scripts/sql/profiles/mysql-default/apolloportaldb.sql
 ```
 
-#### 2.1.1.2 Created via Flyway import SQL
-
-> Requires version 1.3.0 and above
-
-1. Modify the `flyway-portaldb.properties` in [flyway-portaldb.properties](https://github.com/apolloconfig/apollo/blob/master/scripts/flyway/flyway-portaldb.properties) in `flyway.user`, `flyway.password` and `flyway.url` configurations
-2. Execute `mvn -N -Pportaldb flyway:migrate` in the apollo project root directory
-
-#### 2.1.1.3 Verification
+#### 2.1.1.2 Verification
 
 After a successful import, you can verify it by executing the following sql statement.
 
@@ -250,8 +253,6 @@ select `Id`, `Key`, `Value`, `Comment` from `ApolloPortalDB`. `ServerConfig` lim
 
 ### 2.1.2 Creating ApolloConfigDB
 
-You can choose to create it by manually importing SQL or automatically importing SQL via [Flyway](https://flywaydb.org/) according to the actual situation.
-
 #### 2.1.2.1 Importing SQL Manually
 
 You can import [apolloconfigdb.sql](https://github.com/apolloconfig/apollo/blob/master/scripts/sql/profiles/mysql-default/apolloconfigdb.sql) through various MySQL clients.
@@ -262,16 +263,7 @@ Using the native MySQL client as an example.
 source /your_local_path/scripts/sql/profiles/mysql-default/apolloconfigdb.sql
 ```
 
-#### 2.1.2.2 SQL import via Flyway
-
-> Version 1.3.0 and above is required
-
-1. Modify the `flyway.user`, `flyway.password`, and `flyway.password` in [flyway-configdb.properties](https://github.com/apolloconfig/apollo/blob/master/scripts/flyway/flyway-configdb.properties) .
-2. Run `mvn -N -Pconfigdb flyway:migrate` in the apollo project root directory
-
-#### 2.1.2.3 Verification
-
-
+#### 2.1.2.2 Verification
 
 After a successful import, you can verify it by executing the following sql statement.
 
@@ -963,6 +955,7 @@ The following table lists the configurable parameters of the apollo-service-char
 | `configService.image.pullPolicy`                | Image pull policy of apollo-configservice                    | `IfNotPresent`                      |
 | `configService.imagePullSecrets`                | Image pull secrets of apollo-configservice                   | `[]`                                |
 | `configService.service.fullNameOverride`        | Override the service name for apollo-configservice           | `nil`                               |
+| `configService.service.annotations`             | The annotations of the service for apollo-configservice. _(chart version >= 0.9.0)_ | `{}`                                |
 | `configService.service.port`                    | The port for the service of apollo-configservice             | `8080`                              |
 | `configService.service.targetPort`              | The target port for the service of apollo-configservice      | `8080`                              |
 | `configService.service.type`                    | The service type of apollo-configservice                     | `ClusterIP`                         |
@@ -993,6 +986,7 @@ The following table lists the configurable parameters of the apollo-service-char
 | `adminService.image.pullPolicy`                 | Image pull policy of apollo-adminservice                     | `IfNotPresent`                      |
 | `adminService.imagePullSecrets`                 | Image pull secrets of apollo-adminservice                    | `[]`                                |
 | `adminService.service.fullNameOverride`         | Override the service name for apollo-adminservice            | `nil`                               |
+| `adminService.service.annotations`             | The annotations of the service for apollo-adminservice. _(chart version >= 0.9.0)_ | `{}`                                |
 | `adminService.service.port`                     | The port for the service of apollo-adminservice              | `8090`                              |
 | `adminService.service.targetPort`               | The target port for the service of apollo-adminservice       | `8090`                              |
 | `adminService.service.type`                     | The service type of apollo-adminservice                      | `ClusterIP`                         |
@@ -1152,6 +1146,7 @@ The following table lists the configurable parameters of the apollo-portal chart
 | `image.pullPolicy`                    | Image pull policy of apollo-portal                           | `IfNotPresent`               |
 | `imagePullSecrets`                    | Image pull secrets of apollo-portal                          | `[]`                         |
 | `service.fullNameOverride`            | Override the service name for apollo-portal                  | `nil`                        |
+| `service.annotations`                 | The annotations of the service for apollo-portal. _(chart version >= 0.9.0)_ | `{}` |
 | `service.port`                        | The port for the service of apollo-portal                    | `8070`                       |
 | `service.targetPort`                  | The target port for the service of apollo-portal             | `8070`                       |
 | `service.type`                        | The service type of apollo-portal                            | `ClusterIP`                  |
@@ -1302,14 +1297,14 @@ config:
           base: "dc=example,dc=org"
           username: "cn=admin,dc=example,dc=org"
           password: "password"
-          searchFilter: "(uid={0})"
+          search-filter: "(uid={0})"
           urls:
           - "ldap://xxx.somedomain.com:389"
       ldap:
         mapping:
-          objectClass: "inetOrgPerson"
-          loginId: "uid"
-          userDisplayName: "cn"
+          object-class: "inetOrgPerson"
+          login-id: "uid"
+          user-display-name: "cn"
           email: "mail"
 ```
 
@@ -1319,7 +1314,7 @@ If you have modified the code of the apollo server and want to build a Docker im
 
 ### 2.4.2 Based on the built-in Eureka service discovery
 
-Thanks to [AiotCEO](https://github.com/AiotCEO) for providing k8s deployment support, please refer to [apollo-on-kubernetes](https://github.com/apolloconfig/apollo/blob/master/scripts/apollo-on-kubernetes/README.md).
+Thanks to [AiotCEO](https://github.com/AiotCEO) for providing k8s deployment support, please refer to [apollo-on-kubernetes](https://github.com/apolloconfig/apollo-on-kubernetes).
 
 Thanks to [qct](https://github.com/qct) for Helm Chart deployment support, please refer to [qct/apollo-helm](https://github.com/qct/apollo-helm) for usage instructions.
 
@@ -1521,6 +1516,16 @@ This configuration takes effect when config-service.cache.enabled is set to true
 
 > This configuration is used to be compatible with the configuration acquisition logic when the cache is not enabled, because MySQL database queries are case-insensitive by default. If the cache is enabled and MySQL is used, it is recommended to configure it as true. If the database used by your Apollo is case-sensitive, you must keep the default configuration as false, otherwise the configuration cannot be obtained.
 
+
+#### 3.2.3.2 config-service.cache.stats.enabled - Whether to enable caching metric statistics function
+> For versions 2.4.0 and above
+
+> `config-service.cache.stats.enabled` The adjustment configuration must be restarted config service to take effect.
+
+This configuration works when `config-service.cache.stats.enabled` is true, it is used to control the opening of the cache statistics function.  
+The default is false, that is, it will not enable the cache statistics function, when it is set to true, it will enable the cache metric statistics function.  
+View metric reference index[Monitoring related-5.2 Metrics](en/design/apollo-design#5.2-Metrics),such as `http://${someIp:somePort}/prometheus`
+
 ### 3.2.4 `item.key.length.limit`- Maximum length limit for configuration item key
 
 The default configuration is 128.
@@ -1529,9 +1534,19 @@ The default configuration is 128.
 
 The default configuration is 20000.
 
-#### 3.2.5.1 `namespace.value.length.limit.override` - Maximum length limit for namespace's configuration item value
+#### 3.2.5.1 appid.value.length.limit.override - The maximum length limit of the configuration item value of the appId dimension
 
-This configuration is used to override the `item.value.length.limit` configuration to achieve fine-grained control of the namespace's value maximum length limit, the configured value is a json format, the key of the json is the id value of the namespace in the database, the format is as follows.
+This configuration is used to override the configuration of `item.value.length.limit` to control the maximum length limit of the value at the appId granularity. The configured value is in a json format, and the key of the json is appId. The format is as follows:
+```
+appid.value.length.limit.override = {"appId-demo1":200,"appId-demo2":300}
+```
+The above configuration specifies that the maximum length limit of the value in all namespaces under `appId-demo1` is 200, and the maximum length limit of the value in all namespaces under `appId-demo2` is 300
+
+When a new namespace is created under `appId-demo1` or `appId-demo2`, it will automatically inherit the maximum length limit of the value of the namespace, unless the maximum length limit of the value of the configuration item of the namespace is overridden by `namespace.value.length.limit.override`.
+
+#### 3.2.5.2 `namespace.value.length.limit.override` - Maximum length limit for namespace's configuration item value
+
+This configuration is used to override the `item.value.length.limit` or `appid.value.length.limit.override` configuration to achieve fine-grained control of the namespace's value maximum length limit, the configured value is a json format, the key of the json is the id value of the namespace in the database, the format is as follows.
 
 ```
 namespace.value.length.limit.override = {1:200,3:20}

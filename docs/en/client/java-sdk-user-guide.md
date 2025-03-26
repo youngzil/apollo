@@ -8,8 +8,8 @@
 
 * Java: 1.8+
   * To run in Java 1.7 runtime environment, please use 1.x version of apollo client, such as 1.9.1
-* Guava: 20.0+
-  * The Apollo client will reference Guava 29 by default. If your project references other versions, make sure the version number is greater than or equal to 20.0
+* Guava: 22.0+
+  * The Apollo client will reference Guava 32 by default. If your project references other versions, make sure the version number is greater than or equal to 22.0
 
 >Note: For Apollo client, you can make a few code changes to downgrade to Java 1.6 if needed, see [Issue 483](https://github.com/apolloconfig/apollo/issues/483) for details
 
@@ -171,6 +171,7 @@ The content of the file is stored in properties format, for example, if there ar
 request.timeout=2000
 batch=2000
 ```
+> Note: If deployed in a Kubernetes environment, you can also enable the configMap cache to further improve availability
 
 #### 1.2.3.1 Customizing the cache path
 
@@ -414,6 +415,122 @@ The configuration methods, in descending order of priority, are
 3. Via the `app.properties` configuration file
     * You can specify `apollo.override-system-properties=true` in `classpath:/META-INF/app.properties`
 
+#### 1.2.4.9 Enable Client Monitoring
+
+> For version 2.4.0 and above
+
+After enabling the following configurations, you can use `ConfigService.getConfigMonitor()` to retrieve client monitoring information and enable automatic reporting.
+
+```properties
+# 1. Whether to enable the Monitor mechanism, i.e., whether ConfigMonitor is enabled. Default is false.
+apollo.client.monitor.enabled = true
+
+# 2. Whether to expose Monitor data by JMX. When enabled, you can view related information through tools like J-console. Default is false.
+apollo.client.monitor.jmx.enabled = true
+
+# 3. The maximum number of exception logs that Monitor can store. The default is 25, following the FIFO principle.
+apollo.client.monitor.exception-queue-size = 30
+
+# 4. Specify the Exporter type for exporting metric data to the corresponding monitoring system. 
+# If you introduce apollo-plugin-client-prometheus, set this to "prometheus" to enable it.
+# This depends on the SPI implementation of MetricsExporter.
+apollo.client.monitor.external.type = prometheus
+
+# 5. Specify the frequency at which the Exporter exports status information from Monitor as metric data. 
+# The default is once every 10 seconds.
+apollo.client.monitor.external.export-period = 20
+```
+
+#### 1.2.4.10 ConfigMap cache
+
+> For version 2.4.0 and above
+
+Starting from version 2.4.0, the availability of the client in the Kubernetes environment has been enhanced. After enabling the ConfigMap cache, the client will cache a copy of the configuration information fetched from the server in the ConfigMap. In the case of service unavailability, network issues, and loss of local cache files, the configuration can still be restored from the ConfigMap. Here are the relevant configurations:
+
+`apollo.cache.kubernetes.enable`：Whether to enable the ConfigMap cache mechanism, the default is false.
+
+`apollo.cache.kubernetes.namespace`：The namespace of the ConfigMap to be used (the namespace in Kubernetes), the default value is "default".
+
+The configuration information will be placed in the specified ConfigMap according to the following correspondence:
+
+namespace: Use the specified value, if not specified, the default is "default"
+
+configMapName: apollo-configcache-{appId}
+
+key:{cluster}___{namespace}
+
+value: The content is the JSON format string of the corresponding configuration information.
+
+> appId is the application's own appId, such as 100004458.
+> 
+> cluster is the cluster used by the application, which is usually default if not configured locally 
+> 
+> namespace Indicates the configuration namespace used by the application. If '_' appears in the namespace, it will be escaped to '__' when the key is concatenated.
+> Since this feature is extended, so the client-java dependency is set to optional. You need to import the matching version
+> Since read and write operations on the ConfigMap are required, the pod where the client is located must have the corresponding permissions. The specific configuration method can be referred to below.
+
+How to authorize a Pod's Service Account to have read and write permissions for ConfigMap:
+
+1. Create a Service Account: If there is no Service Account, you need to create one.
+   ```yaml
+   apiVersion: v1
+   kind: ServiceAccount
+   metadata:
+     name: my-service-account
+     namespace: default
+   ```
+2. Create a Role or ClusterRole: Define a Role or ClusterRole to grant read and write permissions for a specific ConfigMap. If the ConfigMap is used across multiple Namespaces, a ClusterRole should be used.
+   ```yaml
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: Role
+   metadata:
+     namespace: default
+     name: configmap-role
+   rules:
+   - apiGroups: [""]
+     resources: ["configmaps"]
+     verbs: ["get", "list", "watch", "create", "update", "delete"]
+   ```
+3. Bind the Service Account to the Role or ClusterRole: Use RoleBinding or ClusterRoleBinding to bind the Service Account to the Role or ClusterRole created above.
+   ```yaml
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: RoleBinding
+   metadata:
+     name: configmap-reader-binding
+     namespace: default
+   subjects:
+   - kind: ServiceAccount
+     name: my-service-account
+     namespace: default
+   roleRef:
+     kind: Role
+     name: configmap-role
+     apiGroup: rbac.authorization.k8s.io
+   ```
+4. Specify the Service Account in the Pod configuration: Ensure that the Pod's configuration uses the Service Account created above.
+   ```yaml
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: my-pod
+     namespace: default
+   spec:
+     serviceAccountName: my-service-account
+     containers:
+       - name: my-container
+         image: my-image
+   ```
+5. Apply the configuration: Use the kubectl command-line tool to apply these configurations.
+   ```yaml
+   kubectl apply -f service-account.yaml
+   kubectl apply -f role.yaml
+   kubectl apply -f role-binding.yaml
+   kubectl apply -f pod.yaml
+   ```
+   
+   These steps give the Service Account in the Pod read and write permissions for the specified ConfigMap.
+   If the ConfigMap is cross-namespace, use ClusterRole and ClusterRoleBinding instead of Role and RoleBinding, and ensure that these configurations are applied in all Namespaces that need to access the ConfigMap.
+
 # II. Maven Dependency
 
 Apollo's client jar package has been uploaded to the central repository, the application only needs to be introduced in the following way when it is actually used.
@@ -519,6 +636,96 @@ String someNamespace = "test";
 ConfigFile configFile = ConfigService.getConfigFile("test", ConfigFileFormat.XML);
 String content = configFile.getContent();
 ```
+
+### 3.1.5 Read the configuration corresponding to multiple appid and their namespaces.(added in version 2.4.0)
+Specify the corresponding appid and namespace to retrieve the config, and then obtain the properties.
+```java
+String someAppId = "Animal";
+String somePublicNamespace = "CAT";
+Config config = ConfigService.getConfig(someAppId, somePublicNamespace);
+String someKey = "someKeyFromPublicNamespace";
+String someDefaultValue = "someDefaultValueForTheKey";
+String value = config.getProperty(someKey, someDefaultValue);
+```
+
+### 3.1.6 Retrieve Client Monitoring Metrics
+> For version 2.4.0 and above
+
+Apollo Client significantly enhanced observability since version 2.4.0, providing the ConfigMonitor API as well as metric export options via JMX and Prometheus. For configuration details, see [1.2.4.9 Enable Client Monitoring](#_1249-enable-client-monitoring).
+
+#### 3.1.6.1 Retrieve Monitoring Data via ConfigMonitor
+
+```java
+ConfigMonitor configMonitor = ConfigService.getConfigMonitor();
+// Error-related monitoring API  
+ApolloClientExceptionMonitorApi exceptionMonitorApi = configMonitor.getExceptionMonitorApi();
+List<Exception> apolloConfigExceptionList = exceptionMonitorApi.getApolloConfigExceptionList();
+// Namespace-related monitoring API  
+ApolloClientNamespaceMonitorApi namespaceMonitorApi = configMonitor.getNamespaceMonitorApi();
+List<String> namespace404 = namespaceMonitorApi.getNotFoundNamespaces();
+// Bootstrap parameter-related monitoring API  
+ApolloClientBootstrapArgsMonitorApi runningParamsMonitorApi = configMonitor.getBootstrapArgsMonitorApi();
+String bootstrapNamespaces = runningParamsMonitorApi.getBootstrapNamespaces();
+// Thread pool-related monitoring API  
+ApolloClientThreadPoolMonitorApi threadPoolMonitorApi = configMonitor.getThreadPoolMonitorApi();
+ApolloThreadPoolInfo remoteConfigRepositoryThreadPoolInfo = threadPoolMonitorApi.getRemoteConfigRepositoryThreadPoolInfo();
+```
+
+
+#### 3.1.6.2 Expose Status Information via JMX
+
+Enable the relevant configuration:
+
+```properties
+apollo.client.monitor.enabled = true
+apollo.client.monitor.jmx.enabled = true
+```
+
+After starting the application, use J-console or similar tools to view the metrics. Below is an example using J-console:
+
+![showing Apollo client monitoring metrics in JMX](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/apollo-client-monitor-jmx.jpg)
+#### 3.1.6.3 Client Export Metrics to External Monitoring Systems
+
+Users can customize the integration with monitoring systems such as Prometheus as needed. The client provides an SPI, see [7.3 Exporting Metrics to Custom Monitoring Systems](#_73-exporting-metrics-to-custom-monitoring-systems). for details.
+
+*Related Metrics Data Tables*
+
+**Namespace Metrics**
+
+Metric corresponding API: ApolloClientNamespaceMonitorApi
+
+| Metric Name                                          | Tag        | Corresponding Monitor-API                           |
+| ---------------------------------------------------- | ---------- | --------------------------------------------------- |
+| apollo_client_namespace_usage_total                  | namespace | namespaceMetrics.getUsageCount()                    |
+| apollo_client_namespace_item_num                     | namespace | namespaceMetrics.getFirstLoadTimeSpendInMs()        |
+| apollo_client_namespace_not_found                    |            | namespaceMonitorApi.getNotFoundNamespaces()         |
+| apollo_client_namespace_timeout                      |            | namespaceMonitorApi.getTimeoutNamespaces()          |
+| apollo_client_namespace_first_load_time_spend_in_ms  | namespace | namespaceMetrics.getLatestUpdateTime                |
+
+**Thread Pool Metrics**
+
+Metric corresponding API: ApolloClientThreadPoolMonitorApi
+
+| Metric Name                                          | Tag             | Corresponding Monitor-API                           |
+| ---------------------------------------------------- | --------------- | --------------------------------------------------- |
+| apollo_client_thread_pool_pool_size                  | thread_pool_name | threadPoolInfo.getPoolSize()                        |
+| apollo_client_thread_pool_maximum_pool_size          | thread_pool_name | threadPoolInfo.getMaximumPoolSize()                 |
+| apollo_client_thread_pool_largest_pool_size          | thread_pool_name | threadPoolInfo.getLargestPoolSize()                 |
+| apollo_client_thread_pool_completed_task_count       | thread_pool_name | threadPoolInfo.getCompletedTaskCount()              |
+| apollo_client_thread_pool_queue_remaining_capacity   | thread_pool_name | threadPoolInfo.getQueueRemainingCapacity()          |
+| apollo_client_thread_pool_total_task_count           | thread_pool_name | threadPoolInfo.getTotalTaskCount()                  |
+| apollo_client_thread_pool_active_task_count          | thread_pool_name | threadPoolInfo.getActiveTaskCount()                 |
+| apollo_client_thread_pool_core_pool_size             | thread_pool_name | threadPoolInfo.getCorePoolSize()                    |
+| apollo_client_thread_pool_queue_size                 | thread_pool_name | threadPoolInfo.getQueueSize()                       |
+
+**Exception Metrics**
+
+Metric corresponding API: ApolloClientExceptionMonitorApi
+
+| Metric Name                         | Tag                                                   |
+| ----------------------------------- | ----------------------------------------------------- |
+| apollo_client_exception_num_total   | exceptionMonitorApi.getExceptionCountFromStartup()    |
+
 
 ## 3.2 Spring integration approach
 
@@ -656,6 +863,18 @@ public class SomeAppConfig {
 @Configuration
 @EnableApolloConfig(value = {"FX.apollo", "application.yml"}, order = 1)
 public class AnotherAppConfig {}
+```
+
+4.Support for multiple appid (added in version 2.4.0)
+```java
+// Added support for loading multiple appid their corresponding namespaces. 
+// Note that when using multiple appid, if there are keys that are the same, 
+// only the key from the prioritized loaded appid will be retrieved
+@Configuration
+@EnableApolloConfig(value = {"FX.apollo", "application.yml"},
+        multipleConfigs = {@MultipleConfig(appid = "ORDER_SERVICE", namespaces = {"ORDER.apollo"})}
+)
+public class SomeAppConfig {}
 ```
 
 #### 3.2.1.3 Spring Boot integration methods (recommended)
@@ -1105,13 +1324,13 @@ server.port = 8080
 
 logging.level = ERROR
 
-eureka.client.serviceUrl.defaultZone = http://127.0.0.1:8761/eureka/
+eureka.client.service-url.defaultZone = http://127.0.0.1:8761/eureka/
 eureka.client.healthcheck.enabled=true
-eureka.client.registerWithEureka = true
-eureka.client.fetchRegistry = true
-eureka.client.eurekaServiceUrlPollIntervalSeconds = 60
+eureka.client.register-with-eureka = true
+eureka.client.fetch-registry = true
+eureka.client.eureka-service-url-poll-interval-seconds = 60
 
-eureka.instance.preferIpAddress = true
+eureka.instance.prefer-ip-address = true
 ```
 
 ![text-mode-spring-boot-config-sample](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/text-mode-spring-boot-config-sample.png )
@@ -1282,3 +1501,367 @@ The interface is `com.ctrip.framework.apollo.spi.ConfigServiceLoadBalancerClient
 The Input is multiple ConfigServices returned by meta server, and the output is a ConfigService selected.
 
 The default service provider is `com.ctrip.framework.apollo.spi.RandomConfigServiceLoadBalancerClient`, which chooses one ConfigService from multiple ConfigServices using random strategy .
+
+
+## 7.2 Exporting Metrics to Prometheus
+> For 2.4.0 and above
+
+Metrics can be exported to Prometheus, or different implementations can be written based on SPI to integrate with various monitoring systems.
+
+Import the client plugin
+```xml
+      <dependency>
+        <groupId>com.ctrip.framework.apollo</groupId>
+        <artifactId>apollo-plugin-client-prometheus</artifactId>
+        <version>2.4.0</version>
+      </dependency>
+```
+Adjust the configuration
+```properties
+apollo.client.monitor.enabled=true
+apollo.client.monitor.external.type=prometheus
+```
+You can obtain the ExporterData via ConfigMonitor (the format depends on the monitoring system you configure, here it supports Prometheus format).
+
+Since Prometheus retrieves metrics via pulling, users need to expose the endpoint by themselves and implement a controller like the one below.
+
+Example code
+
+```java
+@RestController
+@ResponseBody
+public class TestController {
+
+  @GetMapping("/metrics")
+  public String metrics() {
+    ConfigMonitor configMonitor = ConfigService.getConfigMonitor();
+    return configMonitor.getExporterData();
+  }
+}   
+```
+
+After starting the application, let Prometheus listen to the endpoint, and by printing the request logs, you will see information in a format similar to the following.
+
+```
+# TYPE apollo_client_thread_pool_active_task_count gauge
+# HELP apollo_client_thread_pool_active_task_count apollo gauge metrics
+apollo_client_thread_pool_active_task_count{thread_pool_name="RemoteConfigRepository"} 0.0
+apollo_client_thread_pool_active_task_count{thread_pool_name="AbstractApolloClientMetricsExporter"} 1.0
+apollo_client_thread_pool_active_task_count{thread_pool_name="AbstractConfigFile"} 0.0
+apollo_client_thread_pool_active_task_count{thread_pool_name="AbstractConfig"} 0.0
+# TYPE apollo_client_namespace_timeout gauge
+# HELP apollo_client_namespace_timeout apollo gauge metrics
+apollo_client_namespace_timeout 0.0
+# TYPE apollo_client_thread_pool_pool_size gauge
+# HELP apollo_client_thread_pool_pool_size apollo gauge metrics
+apollo_client_thread_pool_pool_size{thread_pool_name="RemoteConfigRepository"} 1.0
+apollo_client_thread_pool_pool_size{thread_pool_name="AbstractApolloClientMetricsExporter"} 1.0
+apollo_client_thread_pool_pool_size{thread_pool_name="AbstractConfigFile"} 0.0
+apollo_client_thread_pool_pool_size{thread_pool_name="AbstractConfig"} 0.0
+# TYPE apollo_client_thread_pool_queue_remaining_capacity gauge
+# HELP apollo_client_thread_pool_queue_remaining_capacity apollo gauge metrics
+apollo_client_thread_pool_queue_remaining_capacity{thread_pool_name="RemoteConfigRepository"} 2.147483647E9
+apollo_client_thread_pool_queue_remaining_capacity{thread_pool_name="AbstractApolloClientMetricsExporter"} 2.147483647E9
+apollo_client_thread_pool_queue_remaining_capacity{thread_pool_name="AbstractConfigFile"} 0.0
+apollo_client_thread_pool_queue_remaining_capacity{thread_pool_name="AbstractConfig"} 0.0
+# TYPE apollo_client_exception_num counter
+# HELP apollo_client_exception_num apollo counter metrics
+apollo_client_exception_num_total 1404.0
+apollo_client_exception_num_created 1.729435502796E9
+# TYPE apollo_client_thread_pool_largest_pool_size gauge
+# HELP apollo_client_thread_pool_largest_pool_size apollo gauge metrics
+apollo_client_thread_pool_largest_pool_size{thread_pool_name="RemoteConfigRepository"} 1.0
+apollo_client_thread_pool_largest_pool_size{thread_pool_name="AbstractApolloClientMetricsExporter"} 1.0
+apollo_client_thread_pool_largest_pool_size{thread_pool_name="AbstractConfigFile"} 0.0
+apollo_client_thread_pool_largest_pool_size{thread_pool_name="AbstractConfig"} 0.0
+# TYPE apollo_client_thread_pool_queue_size gauge
+# HELP apollo_client_thread_pool_queue_size apollo gauge metrics
+apollo_client_thread_pool_queue_size{thread_pool_name="RemoteConfigRepository"} 352.0
+apollo_client_thread_pool_queue_size{thread_pool_name="AbstractApolloClientMetricsExporter"} 0.0
+apollo_client_thread_pool_queue_size{thread_pool_name="AbstractConfigFile"} 0.0
+apollo_client_thread_pool_queue_size{thread_pool_name="AbstractConfig"} 0.0
+# TYPE apollo_client_namespace_usage counter
+# HELP apollo_client_namespace_usage apollo counter metrics
+apollo_client_namespace_usage_total{namespace="application"} 11.0
+apollo_client_namespace_usage_created{namespace="application"} 1.729435502791E9
+# TYPE apollo_client_thread_pool_core_pool_size gauge
+# HELP apollo_client_thread_pool_core_pool_size apollo gauge metrics
+apollo_client_thread_pool_core_pool_size{thread_pool_name="RemoteConfigRepository"} 1.0
+apollo_client_thread_pool_core_pool_size{thread_pool_name="AbstractApolloClientMetricsExporter"} 1.0
+apollo_client_thread_pool_core_pool_size{thread_pool_name="AbstractConfigFile"} 0.0
+apollo_client_thread_pool_core_pool_size{thread_pool_name="AbstractConfig"} 0.0
+# TYPE apollo_client_namespace_not_found gauge
+# HELP apollo_client_namespace_not_found apollo gauge metrics
+apollo_client_namespace_not_found 351.0
+# TYPE apollo_client_thread_pool_total_task_count gauge
+# HELP apollo_client_thread_pool_total_task_count apollo gauge metrics
+apollo_client_thread_pool_total_task_count{thread_pool_name="RemoteConfigRepository"} 353.0
+apollo_client_thread_pool_total_task_count{thread_pool_name="AbstractApolloClientMetricsExporter"} 4.0
+apollo_client_thread_pool_total_task_count{thread_pool_name="AbstractConfigFile"} 0.0
+apollo_client_thread_pool_total_task_count{thread_pool_name="AbstractConfig"} 0.0
+# TYPE apollo_client_namespace_first_load_time_spend_in_ms gauge
+# HELP apollo_client_namespace_first_load_time_spend_in_ms apollo gauge metrics
+apollo_client_namespace_first_load_time_spend_in_ms{namespace="application"} 108.0
+# TYPE apollo_client_thread_pool_maximum_pool_size gauge
+# HELP apollo_client_thread_pool_maximum_pool_size apollo gauge metrics
+apollo_client_thread_pool_maximum_pool_size{thread_pool_name="RemoteConfigRepository"} 2.147483647E9
+apollo_client_thread_pool_maximum_pool_size{thread_pool_name="AbstractApolloClientMetricsExporter"} 2.147483647E9
+apollo_client_thread_pool_maximum_pool_size{thread_pool_name="AbstractConfigFile"} 2.147483647E9
+apollo_client_thread_pool_maximum_pool_size{thread_pool_name="AbstractConfig"} 2.147483647E9
+# TYPE apollo_client_namespace_item_num gauge
+# HELP apollo_client_namespace_item_num apollo gauge metrics
+apollo_client_namespace_item_num{namespace="application"} 9.0
+# TYPE apollo_client_thread_pool_completed_task_count gauge
+# HELP apollo_client_thread_pool_completed_task_count apollo gauge metrics
+apollo_client_thread_pool_completed_task_count{thread_pool_name="RemoteConfigRepository"} 1.0
+apollo_client_thread_pool_completed_task_count{thread_pool_name="AbstractApolloClientMetricsExporter"} 3.0
+apollo_client_thread_pool_completed_task_count{thread_pool_name="AbstractConfigFile"} 0.0
+apollo_client_thread_pool_completed_task_count{thread_pool_name="AbstractConfig"} 0.0
+# EOF
+```
+
+At the same time, you can also view the following information on the Prometheus console:
+
+![Prometheus console showing Apollo client metrics](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/apollo-client-monitor-prometheus.png)
+
+## 7.3 Exporting Metrics to Custom Monitoring Systems
+> Applicable to version 2.4.0 and above
+
+Users need to implement a MetricsExporter by extending `AbstractApolloClientMetricsExporter` and implement the following methods:
+- doInit (Initialization method)
+- isSupport (Method to check if the external-type configuration is supported)
+- registerOrUpdateCounterSample (Method to register or update Counter metrics)
+- registerOrUpdateGaugeSample (Method to register or update Gauge metrics)
+- response (Method to export the required metric data)
+
+Additionally, you need to configure the corresponding SPI files.
+
+MetricsExporter Loading Flowchart:
+```mermaid
+sequenceDiagram
+    participant Factory as DefaultMetricsExporterFactory
+    participant Exporter as MetricsExporter
+    participant SPI as SPI Loader
+
+    %% Step 1: Factory loads all Exporters using SPI
+    Factory->>SPI: loadAllOrdered(MetricsExporter)
+    SPI-->>Factory: List<MetricsExporter>
+
+    %% Step 2: Factory checks for supported Exporter
+    Factory->>Exporter: isSupport(externalSystemType)
+    Exporter-->>Factory: true / false
+
+    alt Exporter Found
+        %% Step 3: Factory initializes the Exporter
+        Factory->>Exporter: init(listeners, exportPeriod)
+        Factory-->>Client: Exporter Instance
+    else No Exporter Found
+        %% Step 4: Factory returns null
+        Factory-->>Client: null
+    end
+```
+
+### 7.3.1 SkyWalking Example
+By configuring:
+```properties
+apollo.client.monitor.enabled=true
+# Defined within the exporter
+apollo.client.monitor.external.type=skywalking
+```
+
+Create a SkyWalkingMetricsExporter class, which extends AbstractApolloClientMetricsExporter.
+
+The basic code after inheritance is as follows: 
+Note: This is just an example, do not use it directly in production. Implement it according to your company's specific situation.
+
+```java
+public class SkyWalkingMetricsExporter extends AbstractApolloClientMetricsExporter {
+
+  private static final String SKYWALKING = "skywalking";
+  protected SkywalkingMeterRegistry registry;
+  // When designing, users should consider if the data structure for storing metrics consumes too much memory.
+  protected Map<String, Counter> counterMap;
+  private Map<String, Gauge> gaugeMap;
+  private Map<String, AtomicReference<Double>> gaugeValues;
+
+  @Override
+  public void doInit() {
+    registry = new SkywalkingMeterRegistry();
+    counterMap = new ConcurrentHashMap<>();
+    gaugeValues = new ConcurrentHashMap<>();
+    gaugeMap = new ConcurrentHashMap<>();
+  }
+
+  @Override
+  public boolean isSupport(String form) {
+    return SKYWALKING.equals(form);
+  }
+
+  @Override
+  public void registerOrUpdateCounterSample(String name, Map<String, String> tags, double incrValue) {
+    String key = name + tags.toString();
+    Counter counter = counterMap.get(key);
+
+    if (counter == null) {
+      counter = createCounter(name, tags);
+      counterMap.put(key, counter);
+    }
+
+    counter.increment(incrValue);
+  }
+
+  private Counter createCounter(String name, Map<String, String> tags) {
+    return Counter.builder(name)
+      .tags(tags.entrySet().stream()
+        .map(entry -> Tag.of(entry.getKey(), entry.getValue()))
+        .collect(Collectors.toList()))
+      .register(registry);
+  }
+
+  @Override
+  public void registerOrUpdateGaugeSample(String name, Map<String, String> tags, double value) {
+    String key = name + tags.toString();
+    Gauge gauge = gaugeMap.get(key);
+    if (gauge == null) {
+      createGauge(name, tags, value);
+    } else {
+      gaugeValues.get(key).set(value);
+    }
+  }
+
+  public void createGauge(String name, Map<String, String> tags, double value) {
+    String key = name + tags.toString();
+    AtomicReference<Double> valueHolder = gaugeValues.computeIfAbsent(key, k -> new AtomicReference<>(value));
+    gaugeMap.computeIfAbsent(key, k -> Gauge.builder(name, valueHolder::get)
+      .tags(tags.entrySet().stream()
+        .map(entry -> Tag.of(entry.getKey(), entry.getValue()))
+        .collect(Collectors.toList()))
+      .register(registry));
+  }
+
+  @Override
+  public String response() {
+    // No need to implement in SkyWalking push mode
+    return "This method does not need to be implemented in SkyWalking's push mode";
+  }
+}
+
+```
+
+The doInit method is for users to extend during initialization. It will be called within the init method in AbstractApolloClientMetricsExporter.
+
+```java
+@Override
+public void init(List<ApolloClientMonitorEventListener> collectors, long collectPeriod) {
+  // code
+  doInit(); 
+  // code
+}
+```
+
+Import Micrometer:
+```xml
+<dependency>
+  <groupId>org.apache.skywalking</groupId>
+  <artifactId>apm-toolkit-micrometer-1.10</artifactId>
+</dependency>
+```
+Initialize the SkywalkingMeterRegistry according to Micrometer's mechanism, 
+and use some maps to store metric data.
+
+```java
+private static final String SKYWALKING = "skywalking";
+private SkywalkingMeterRegistry registry;
+// When designing, users should consider if the data structure for storing metrics consumes too much memory.
+private Map<String, Counter> counterMap;
+private Map<String, Gauge> gaugeMap;
+private Map<String, AtomicReference<Double>> gaugeValues;
+
+@Override
+public void doInit() {
+  registry = new SkywalkingMeterRegistry();
+  counterMap = new ConcurrentHashMap<>();
+  gaugeValues = new ConcurrentHashMap<>();
+  gaugeMap = new ConcurrentHashMap<>();
+}
+
+```
+
+The isSupport method will be called when DefaultApolloClientMetricsExporterFactory reads the MetricsExporter via SPI, to check if the correct exporter is enabled when there are multiple SPI implementations.
+
+For example, when configuring and enabling SkyWalking, and you set the apollo.client.monitor.external.type configuration value as skyWalking, the method will be implemented like this:
+```java
+@Override
+public boolean isSupport(String form) {
+  return SKYWALKING.equals(form);
+}
+```
+
+The registerOrUpdateCounterSample and registerOrUpdateGaugeSample methods are used to register Counter and Gauge type metrics. You just need to register and update the data as per the parameters passed in.
+```java
+@Override
+public void registerOrUpdateCounterSample(String name, Map<String, String> tags, double incrValue) {
+  String key = name + tags.toString();
+  Counter counter = counterMap.get(key);
+
+  if (counter == null) {
+    counter = createCounter(name, tags);
+    counterMap.put(key, counter);
+  }
+
+  counter.increment(incrValue);
+}
+
+private Counter createCounter(String name, Map<String, String> tags) {
+  return Counter.builder(name)
+    .tags(tags.entrySet().stream()
+      .map(entry -> Tag.of(entry.getKey(), entry.getValue()))
+      .collect(Collectors.toList()))
+    .register(registry);
+}
+
+@Override
+public void registerOrUpdateGaugeSample(String name, Map<String, String> tags, double value) {
+  String key = name + tags.toString();
+  Gauge gauge = gaugeMap.get(key);
+
+  if (gauge == null) {
+    createGauge(name, tags, value);
+  } else {
+    gaugeValues.get(key).set(value);
+  }
+}
+
+public void createGauge(String name, Map<String, String> tags, double value) {
+  String key = name + tags.toString();
+  AtomicReference<Double> valueHolder = gaugeValues.computeIfAbsent(key, k -> new AtomicReference<>(value));
+
+  gaugeMap.computeIfAbsent(key, k -> Gauge.builder(name, valueHolder::get)
+    .tags(tags.entrySet().stream()
+      .map(entry -> Tag.of(entry.getKey(), entry.getValue()))
+      .collect(Collectors.toList()))
+    .register(registry));
+}
+```
+
+The response method is for monitoring systems with pull-based metrics retrieval, like Prometheus. However, since SkyWalking uses a push mode, this method does not need to be implemented. Just configure SkyWalking for your use case.
+
+```java
+@Override
+public String response() {
+    // No need to implement in SkyWalking's push mode
+    return "This method does not need to be implemented in SkyWalking's push mode";
+}
+
+```
+
+Finally, in the project directory under resources/META-INF/services, 
+create the corresponding SPI file to tell the framework to load this class. The file name should be com.ctrip.framework.apollo.monitor.internal.exporter.ApolloClientMetricsExporter.
+```text
+your.package.SkyWalkingMetricsExporter
+```
+At this point, the client metrics data has been integrated into SkyWalking.
+
+### 7.3.2 Prometheus Example
+
+[PrometheusApolloClientMetricsExporter.java](https://github.com/apolloconfig/apollo-java/blob/main/apollo-plugin/apollo-plugin-client-prometheus/src/main/java/com/ctrip/framework/apollo/monitor/internal/exporter/impl/PrometheusApolloClientMetricsExporter.java)
