@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Apollo Authors
+ * Copyright 2025 Apollo Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ import com.google.common.base.Strings;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.PostConstruct;
-import javax.servlet.ServletContext;
+import jakarta.annotation.PostConstruct;
+import jakarta.servlet.ServletContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.cloud.commons.util.InetUtils;

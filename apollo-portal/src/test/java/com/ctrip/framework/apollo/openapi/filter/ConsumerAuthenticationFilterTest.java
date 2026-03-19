@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Apollo Authors
+ * Copyright 2025 Apollo Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,16 +24,16 @@ import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletException;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import javax.servlet.FilterChain;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -140,7 +140,7 @@ public class ConsumerAuthenticationFilterTest {
 
   @Test
   public void testRateLimitPartFailure() throws Exception {
-     String someToken = "some-ratelimit-fail-token";
+    String someToken = "some-ratelimit-fail-token";
     Long someConsumerId = 1L;
     int qps = 5;
     int durationInSeconds = 3;

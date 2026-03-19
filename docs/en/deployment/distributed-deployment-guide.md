@@ -13,7 +13,7 @@ The server side is based on Spring Boot and the startup script theoretically sup
 
 ### 1.1.2 Java
 
-* Apollo server: 1.8+
+* Apollo server: 17+
 * Apollo client: 1.8+
     * For running in Java 1.7 runtime environment, please use apollo client of 1.x version, such as 1.9.1
 
@@ -24,9 +24,9 @@ java -version
 
 Sample output.
 ```sh
-java version "1.8.0_74"
-Java(TM) SE Runtime Environment (build 1.8.0_74-b02)
-Java HotSpot(TM) 64-Bit Server VM (build 25.74-b02, mixed mode)
+java version "17.0.14"
+Java(TM) SE Runtime Environment (build 17.0.14+7)
+Java HotSpot(TM) 64-Bit Server VM (build 17.0.14+7, mixed mode)
 ```
 
 ## 1.2 MySQL
@@ -513,7 +513,9 @@ export JAVA_OPTS="-server -Xms6144m -Xmx6144m -Xss256k -XX:MetaspaceSize=128m -X
 
 > Note 4: If the eureka.service.url of ApolloConfigDB.ServerConfig is only configured with the currently starting machine, the eureka registration failure information will be output in the log during the process of starting apollo-configservice, such as `com.sun.jersey .api.client.ClientHandlerException: java.net.ConnectException: Connection refused`. It should be noted that this is the expected situation, because apollo-configservice needs to register the service with the Meta Server (itself), but because it has not yet woken up during the startup process, it will report this error. The retry action will be performed later, so the registration will be normal after the service is up.
 
-> Note 5: If you read this, I believe that you must be someone who reads the documentation carefully, and you are a little bit closer to success. Keep going, you should be able to complete the distributed deployment of Apollo soon! But do you feel that Apollo's distributed deployment steps are a bit cumbersome? Do you have any advice you would like to share with the author? If the answer is yes, please move to [#1424](https://github.com/apolloconfig/apollo/issues/1424) and look forward to your suggestions!
+> Note 5: Starting from version 2.5.0, apollo-configservice supports graceful shutdown. When the service receives a stop signal, it will wait for in-flight requests to complete before shutting down, with a default timeout of 10 seconds. This feature is enabled via Spring Boot's `server.shutdown=graceful` and `spring.lifecycle.timeout-per-shutdown-phase=${GRACEFUL_SHUTDOWN_TIMEOUT:10s}` configuration. To adjust the timeout, you can set the `GRACEFUL_SHUTDOWN_TIMEOUT` environment variable (e.g., `30s`, `60s`, `2m`) or modify the settings in application.yml. In Kubernetes environments, ensure the Pod's `terminationGracePeriodSeconds` is greater than the configured timeout (recommend at least 10 seconds more).
+
+> Note 6: If you read this, I believe that you must be someone who reads the documentation carefully, and you are a little bit closer to success. Keep going, you should be able to complete the distributed deployment of Apollo soon! But do you feel that Apollo's distributed deployment steps are a bit cumbersome? Do you have any advice you would like to share with the author? If the answer is yes, please move to [#1424](https://github.com/apolloconfig/apollo/issues/1424) and look forward to your suggestions!
 
 #### 2.2.2.2 Deploy apollo-adminservice
 
@@ -530,6 +532,8 @@ export JAVA_OPTS="-server -Xms2560m -Xmx2560m -Xss256k -XX:MetaspaceSize=128m -X
 > Note 2: To adjust the log output path of the service, you can modify `LOG_DIR` in scripts/startup.sh and apollo-adminservice.conf.
 
 > Note 3: To adjust the listening port of the service, you can modify the `SERVER_PORT` in scripts/startup.sh.
+
+> Note 4: Starting from version 2.5.0, apollo-adminservice supports graceful shutdown. When the service receives a stop signal, it will wait for in-flight requests to complete before shutting down, with a default timeout of 10 seconds. This feature is enabled via Spring Boot's `server.shutdown=graceful` and `spring.lifecycle.timeout-per-shutdown-phase=${GRACEFUL_SHUTDOWN_TIMEOUT:10s}` configuration. To adjust the timeout, you can set the `GRACEFUL_SHUTDOWN_TIMEOUT` environment variable (e.g., `30s`, `60s`, `2m`) or modify the settings in application.yml. In Kubernetes environments, ensure the Pod's `terminationGracePeriodSeconds` is greater than the configured timeout (recommend at least 10 seconds more).
 
 #### 2.2.2.3 Deploy apollo-portal
 
@@ -1632,3 +1636,47 @@ json
 }
 ```
 The above configuration specifies that the retention size for release history of appId=kl, clusterName=bj, namespaceName=namespace1, and branchName=bj is 10, and the retention size for release history of appId=kl, clusterName=bj, namespaceName=namespace2, and branchName=bj is 20. In general, branchName equals clusterName. It is only different during gray release, where the branchName needs to be confirmed by querying the ReleaseHistory table in the database.
+
+### 3.2.14 instance.config.audit.max.size - The size of the queue for clients to pull audit records
+
+> For version 2.5.0 and above
+
+The default value is 10000 and the minimum value is 10. It is used to control the queue size for the client to pull audit records. When the queue size is exceeded, the earliest audit record will be discarded.
+
+After the modification, you need to restart for it to take effect.
+
+### 3.2.15 instance.cache.max.size - The maximum number of caches for the instance
+
+> For version 2.5.0 and above
+
+The default value is 50000, and the minimum value is 10. It is used to control the maximum number of instance caches. When the cache exceeds the maximum capacity, the cache eviction mechanism is triggered.
+
+After the modification, you need to restart for it to take effect.
+
+### 3.2.16 instance.config.cache.max.size - The maximum number of caches for the instance config
+
+> For version 2.5.0 and above
+
+The default value is 50000 and the minimum value is 10. It is used to control the maximum number of caches for the instance config. When the cache exceeds the maximum capacity, the cache eviction mechanism is triggered.
+
+After the modification, you need to restart for it to take effect.
+
+### 3.2.17 instance.config.audit.time.threshold.minutes - The interval between instances pulling audit records
+
+> For version 2.5.0 and above
+
+The time threshold unit is minutes, the default is 10, and the minimum is 5. It is used to control when saving/updating the client pull configuration audit record. When the interval between two request records is greater than this value, the pull record will be saved/updated. When it is less than this value, the pull record will not be saved/updated.
+
+### 3.2.14 config-service.incremental.change.enabled - whether to enables incremental config sync for the client
+
+> for server versions 2.5.0 and above && java client versions 2.4.0 and above
+
+This is a feature toggle. When set to true, the Config Service caches previously loaded configurations and sends incremental updates to clients, reducing server network load.
+
+Default is false. Assess total configuration size and adjust Config Service memory settings before enabling.
+
+> Ensure that the `app.id`、`apollo.cluster` of the configuration in the application is in the correct case when caching is enabled, otherwise it will not fetch the correct configuration, You can also refer to the `config-service.cache.key.ignore-case` configuration for compatibility processing.
+
+> `config-service.incremental.change.enabled` configuration adjustment requires a restart of the config service to take effect
+
+

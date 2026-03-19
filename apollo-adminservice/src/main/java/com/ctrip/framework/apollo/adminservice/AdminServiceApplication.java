@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Apollo Authors
+ * Copyright 2025 Apollo Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,20 +22,20 @@ import com.ctrip.framework.apollo.common.ApolloCommonConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
+import org.springframework.boot.autoconfigure.session.SessionAutoConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+
 @EnableAspectJAutoProxy
 @Configuration
 @PropertySource(value = {"classpath:adminservice.properties"})
-@EnableAutoConfiguration(exclude = {
-    UserDetailsServiceAutoConfiguration.class,
-})
+@EnableAutoConfiguration(
+    exclude = {UserDetailsServiceAutoConfiguration.class, SessionAutoConfiguration.class})
 @EnableTransactionManagement
-@ComponentScan(basePackageClasses = {ApolloCommonConfig.class,
-    ApolloBizConfig.class,
+@ComponentScan(basePackageClasses = {ApolloCommonConfig.class, ApolloBizConfig.class,
     AdminServiceApplication.class})
 public class AdminServiceApplication {
   public static void main(String[] args) {

@@ -13,7 +13,7 @@
 
 ### 1.1.2 Java
 
-* Apollo服务端：1.8+
+* Apollo服务端：17+
 * Apollo客户端：1.8+
     * 如需运行在 Java 1.7 运行时环境，请使用 1.x 版本的 apollo 客户端，如 1.9.1
 
@@ -24,9 +24,9 @@ java -version
 
 样例输出：
 ```sh
-java version "1.8.0_74"
-Java(TM) SE Runtime Environment (build 1.8.0_74-b02)
-Java HotSpot(TM) 64-Bit Server VM (build 25.74-b02, mixed mode)
+java version "17.0.14"
+Java(TM) SE Runtime Environment (build 17.0.14+7)
+Java HotSpot(TM) 64-Bit Server VM (build 17.0.14+7, mixed mode)
 ```
 
 ## 1.2 MySQL
@@ -495,7 +495,9 @@ export JAVA_OPTS="-server -Xms6144m -Xmx6144m -Xss256k -XX:MetaspaceSize=128m -X
 
 > 注4：如果ApolloConfigDB.ServerConfig的eureka.service.url只配了当前正在启动的机器的话，在启动apollo-configservice的过程中会在日志中输出eureka注册失败的信息，如`com.sun.jersey.api.client.ClientHandlerException: java.net.ConnectException: Connection refused`。需要注意的是，这个是预期的情况，因为apollo-configservice需要向Meta Server（它自己）注册服务，但是因为在启动过程中，自己还没起来，所以会报这个错。后面会进行重试的动作，所以等自己服务起来后就会注册正常了。
 
-> 注5：如果你看到了这里，相信你一定是一个细心阅读文档的人，而且离成功就差一点点了，继续加油，应该很快就能完成Apollo的分布式部署了！不过你是否有感觉Apollo的分布式部署步骤有点繁琐？是否有啥建议想要和作者说？如果答案是肯定的话，请移步 [#1424](https://github.com/apolloconfig/apollo/issues/1424)，期待你的建议！
+> 注5：apollo-configservice从2.5.0版本开始支持优雅下线功能。当服务收到停止信号时，会等待正在处理的请求完成后再关闭，默认等待时间为10秒。此功能通过Spring Boot的`server.shutdown=graceful`和`spring.lifecycle.timeout-per-shutdown-phase=${GRACEFUL_SHUTDOWN_TIMEOUT:10s}`配置启用。如需调整超时时间，可以通过环境变量`GRACEFUL_SHUTDOWN_TIMEOUT`设置（如`30s`、`60s`、`2m`等），或直接修改application.yml中的配置。在Kubernetes环境中，请确保Pod的`terminationGracePeriodSeconds`大于配置的超时时间（建议至少多10秒）。
+
+> 注6：如果你看到了这里，相信你一定是一个细心阅读文档的人，而且离成功就差一点点了，继续加油，应该很快就能完成Apollo的分布式部署了！不过你是否有感觉Apollo的分布式部署步骤有点繁琐？是否有啥建议想要和作者说？如果答案是肯定的话，请移步 [#1424](https://github.com/apolloconfig/apollo/issues/1424)，期待你的建议！
 
 #### 2.2.2.2 部署apollo-adminservice
 将对应环境的`apollo-adminservice-x.x.x-github.zip`上传到服务器上，解压后执行scripts/startup.sh即可。如需停止服务，执行scripts/shutdown.sh.
@@ -510,6 +512,8 @@ export JAVA_OPTS="-server -Xms2560m -Xmx2560m -Xss256k -XX:MetaspaceSize=128m -X
 > 注2：如要调整服务的日志输出路径，可以修改scripts/startup.sh和apollo-adminservice.conf中的`LOG_DIR`。
 
 > 注3：如要调整服务的监听端口，可以修改scripts/startup.sh中的`SERVER_PORT`。
+
+> 注4：apollo-adminservice从2.5.0版本开始支持优雅下线功能。当服务收到停止信号时，会等待正在处理的请求完成后再关闭，默认等待时间为10秒。此功能通过Spring Boot的`server.shutdown=graceful`和`spring.lifecycle.timeout-per-shutdown-phase=${GRACEFUL_SHUTDOWN_TIMEOUT:10s}`配置启用。如需调整超时时间，可以通过环境变量`GRACEFUL_SHUTDOWN_TIMEOUT`设置（如`30s`、`60s`、`2m`等），或直接修改application.yml中的配置。在Kubernetes环境中，请确保Pod的`terminationGracePeriodSeconds`大于配置的超时时间（建议至少多10秒）。
 
 #### 2.2.2.3 部署apollo-portal
 将`apollo-portal-x.x.x-github.zip`上传到服务器上，解压后执行scripts/startup.sh即可。如需停止服务，执行scripts/shutdown.sh.
@@ -1571,3 +1575,47 @@ json
 }
 ```
 以上配置指定了 appId=kl、clusterName=bj、namespaceName=namespace1、branchName=bj 的发布历史保留数量为 10，appId=kl、clusterName=bj、namespaceName=namespace2、branchName=bj 的发布历史保留数量为 20，branchName 一般等于 clusterName，只有灰度发布时才会不同，灰度发布的 branchName 需要查询数据库 ReleaseHistory 表确认。
+
+### 3.2.14 instance.config.audit.max.size - 客户端拉取审计记录的队列大小
+
+> 适用于2.5.0及以上版本
+
+默认为 10000，最小为10，用于控制客户端拉取审计记录的队列大小，超过队列大小后会丢弃最早的审计记录。
+
+修改完需要重启生效。
+
+### 3.2.15 instance.cache.max.size - 实例缓存的最大数量
+
+> 适用于2.5.0及以上版本
+
+默认为 50000，最小为10，用于控制实例缓存的最大数量，当缓存超过最大容量时，会触发缓存淘汰（Eviction） 机制。
+
+修改完需要重启生效。
+
+### 3.2.16 instance.config.cache.max.size - 实例配置的缓存最大数量
+
+> 适用于2.5.0及以上版本
+
+默认为 50000，最小为10，用于控制实例配置的缓存最大数量，当缓存超过最大容量时，会触发缓存淘汰（Eviction） 机制。
+
+修改完需要重启生效。
+
+
+### 3.2.17 instance.config.audit.time.threshold.minutes - 实例拉取审计记录的间隔时间
+
+> 适用于2.5.0及以上版本
+
+时间阈值单位为分钟，默认为 10，最小为5，用于控制在保存/更新客户端拉取配置审计记录时，当2次请求记录间隔大于该值时，才会保存/更新拉取记录，小于该值时，不会保存/更新拉取记录。
+
+### 3.2.18 config-service.incremental.change.enabled - 是否开启增量配置同步客户端
+
+> 适用于服务端2.5.0及以上版本 && Java客户端2.4.0及以上版本
+
+这是一个功能开关，如果配置为true的话，config service会缓存加载过的配置信息，发送给客户端增量配置，减少客户端对服务端的网络压力。
+
+默认为false，开启前请先评估总配置大小并调整config service内存配置。
+
+> 开启缓存后必须确保应用中配置的`app.id`、`apollo.cluster`
+> 大小写正确，否则将获取不到正确的配置，另可参考`config-service.cache.key.ignore-case`配置做兼容处理。
+
+> `config-service.incremental.change.enabled` 配置调整必须重启 config service 才能生效

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Apollo Authors
+ * Copyright 2025 Apollo Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 package com.ctrip.framework.apollo.portal.controller;
 
 
+import com.ctrip.framework.apollo.portal.component.UnifiedPermissionValidator;
 import com.ctrip.framework.apollo.portal.environment.Env;
-import com.ctrip.framework.apollo.portal.component.UserPermissionValidator;
 import com.ctrip.framework.apollo.portal.entity.bo.ReleaseHistoryBO;
 import com.ctrip.framework.apollo.portal.service.ReleaseHistoryService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,26 +33,28 @@ import java.util.List;
 public class ReleaseHistoryController {
 
   private final ReleaseHistoryService releaseHistoryService;
-  private final UserPermissionValidator userPermissionValidator;
+  private final UnifiedPermissionValidator unifiedPermissionValidator;
 
-  public ReleaseHistoryController(final ReleaseHistoryService releaseHistoryService, final UserPermissionValidator userPermissionValidator) {
+  public ReleaseHistoryController(final ReleaseHistoryService releaseHistoryService,
+      final UnifiedPermissionValidator unifiedPermissionValidator) {
     this.releaseHistoryService = releaseHistoryService;
-    this.userPermissionValidator = userPermissionValidator;
+    this.unifiedPermissionValidator = unifiedPermissionValidator;
   }
 
   @GetMapping("/apps/{appId}/envs/{env}/clusters/{clusterName}/namespaces/{namespaceName}/releases/histories")
   public List<ReleaseHistoryBO> findReleaseHistoriesByNamespace(@PathVariable String appId,
-                                                                @PathVariable String env,
-                                                                @PathVariable String clusterName,
-                                                                @PathVariable String namespaceName,
-                                                                @RequestParam(value = "page", defaultValue = "0") int page,
-                                                                @RequestParam(value = "size", defaultValue = "10") int size) {
+      @PathVariable String env, @PathVariable String clusterName,
+      @PathVariable String namespaceName,
+      @RequestParam(value = "page", defaultValue = "0") int page,
+      @RequestParam(value = "size", defaultValue = "10") int size) {
 
-    if (userPermissionValidator.shouldHideConfigToCurrentUser(appId, env, clusterName, namespaceName)) {
+    if (unifiedPermissionValidator.shouldHideConfigToCurrentUser(appId, env, clusterName,
+        namespaceName)) {
       return Collections.emptyList();
     }
 
-   return releaseHistoryService.findNamespaceReleaseHistory(appId, Env.valueOf(env), clusterName ,namespaceName, page, size);
+    return releaseHistoryService.findNamespaceReleaseHistory(appId, Env.valueOf(env), clusterName,
+        namespaceName, page, size);
   }
 
 }

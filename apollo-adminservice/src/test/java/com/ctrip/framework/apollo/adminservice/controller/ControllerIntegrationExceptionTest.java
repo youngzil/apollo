@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Apollo Authors
+ * Copyright 2025 Apollo Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ public class ControllerIntegrationExceptionTest extends AbstractControllerTest {
     when(adminService.createNewApp(any(App.class))).thenThrow(new RuntimeException("save failed"));
 
     try {
-      restTemplate.postForEntity(url("/apps/"), dto, AppDTO.class);
+      restTemplate.postForEntity(url("/apps"), dto, AppDTO.class);
     } catch (HttpStatusCodeException e) {
       @SuppressWarnings("unchecked")
       Map<String, String> attr = GSON.fromJson(e.getResponseBodyAsString(), Map.class);

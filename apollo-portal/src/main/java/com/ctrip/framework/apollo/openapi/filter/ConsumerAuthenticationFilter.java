@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Apollo Authors
+ * Copyright 2025 Apollo Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,14 +25,14 @@ import com.google.common.util.concurrent.RateLimiter;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,26 +53,33 @@ public class ConsumerAuthenticationFilter implements Filter {
 
   private static final int TOO_MANY_REQUESTS = 429;
 
-  private static final Cache<String, ImmutablePair<Long, RateLimiter>> LIMITER = CacheBuilder.newBuilder()
-      .expireAfterAccess(1, TimeUnit.HOURS)
-      .maximumSize(RATE_LIMITER_CACHE_MAX_SIZE).build();
+  private static final Cache<String, ImmutablePair<Long, RateLimiter>> LIMITER =
+      CacheBuilder.newBuilder().expireAfterAccess(1, TimeUnit.HOURS)
+          .maximumSize(RATE_LIMITER_CACHE_MAX_SIZE).build();
 
-  public ConsumerAuthenticationFilter(ConsumerAuthUtil consumerAuthUtil, ConsumerAuditUtil consumerAuditUtil) {
+  private static final String PORTAL_USER_AUTHENTICATED = "PORTAL_USER_AUTHENTICATED";
+
+  public ConsumerAuthenticationFilter(ConsumerAuthUtil consumerAuthUtil,
+      ConsumerAuditUtil consumerAuditUtil) {
     this.consumerAuthUtil = consumerAuthUtil;
     this.consumerAuditUtil = consumerAuditUtil;
   }
 
   @Override
   public void init(FilterConfig filterConfig) throws ServletException {
-    //nothing
+    // nothing
   }
 
   @Override
-  public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain) throws
-      IOException, ServletException {
+  public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
+      throws IOException, ServletException {
     HttpServletRequest request = (HttpServletRequest) req;
     HttpServletResponse response = (HttpServletResponse) resp;
 
+    if (Boolean.TRUE.equals(request.getAttribute(PORTAL_USER_AUTHENTICATED))) {
+      chain.doFilter(req, resp);
+      return;
+    }
     String token = request.getHeader(HttpHeaders.AUTHORIZATION);
     ConsumerToken consumerToken = consumerAuthUtil.getConsumerToken(token);
 
@@ -84,9 +91,11 @@ public class ConsumerAuthenticationFilter implements Filter {
     Integer rateLimit = consumerToken.getRateLimit();
     if (null != rateLimit && rateLimit > 0) {
       try {
-        ImmutablePair<Long, RateLimiter> rateLimiterPair = getOrCreateRateLimiterPair(consumerToken.getToken(), rateLimit);
+        ImmutablePair<Long, RateLimiter> rateLimiterPair =
+            getOrCreateRateLimiterPair(consumerToken.getToken(), rateLimit);
         long warmupToMillis = rateLimiterPair.getLeft() + WARMUP_MILLIS;
-        if (System.currentTimeMillis() > warmupToMillis && !rateLimiterPair.getRight().tryAcquire()) {
+        if (System.currentTimeMillis() > warmupToMillis
+            && !rateLimiterPair.getRight().tryAcquire()) {
           response.sendError(TOO_MANY_REQUESTS, "Too Many Requests, the flow is limited");
           return;
         }
@@ -106,13 +115,14 @@ public class ConsumerAuthenticationFilter implements Filter {
 
   @Override
   public void destroy() {
-    //nothing
+    // nothing
   }
 
-  private ImmutablePair<Long, RateLimiter> getOrCreateRateLimiterPair(String key, Integer limitCount) {
+  private ImmutablePair<Long, RateLimiter> getOrCreateRateLimiterPair(String key,
+      Integer limitCount) {
     try {
-      return LIMITER.get(key, () ->
-          ImmutablePair.of(System.currentTimeMillis(), RateLimiter.create(limitCount)));
+      return LIMITER.get(key,
+          () -> ImmutablePair.of(System.currentTimeMillis(), RateLimiter.create(limitCount)));
     } catch (ExecutionException e) {
       throw new RuntimeException("Failed to create rate limiter", e);
     }

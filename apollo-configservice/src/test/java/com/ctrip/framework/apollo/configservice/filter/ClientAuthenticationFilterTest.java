@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Apollo Authors
+ * Copyright 2025 Apollo Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,9 +30,9 @@ import com.ctrip.framework.apollo.core.signature.Signature;
 import com.google.common.collect.Lists;
 import java.util.Collections;
 import java.util.List;
-import javax.servlet.FilterChain;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -193,7 +193,8 @@ public class ClientAuthenticationFilterTest {
 
   private void verifySuccessAndDoFilter() throws Exception {
     verify(response, never()).sendError(HttpServletResponse.SC_BAD_REQUEST, "InvalidAppId");
-    verify(response, never()).sendError(HttpServletResponse.SC_UNAUTHORIZED, "RequestTimeTooSkewed");
+    verify(response, never()).sendError(HttpServletResponse.SC_UNAUTHORIZED,
+        "RequestTimeTooSkewed");
     verify(response, never()).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
     verify(filterChain, times(1)).doFilter(request, response);
   }

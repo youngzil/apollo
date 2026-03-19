@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Apollo Authors
+ * Copyright 2025 Apollo Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package com.ctrip.framework.apollo.portal.controller;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
@@ -29,9 +30,11 @@ import com.ctrip.framework.apollo.portal.PortalApplication;
 import com.ctrip.framework.apollo.portal.entity.bo.UserInfo;
 import com.ctrip.framework.apollo.portal.environment.Env;
 import com.ctrip.framework.apollo.portal.service.ItemService;
+import com.ctrip.framework.apollo.portal.service.RolePermissionService;
 import com.ctrip.framework.apollo.portal.spi.UserInfoHolder;
 import com.google.gson.Gson;
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,9 +51,10 @@ import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+
 @RunWith(SpringJUnit4ClassRunner.class)
-@SpringBootTest(classes = {PortalApplication.class,
-    ControllableAuthorizationConfiguration.class}, webEnvironment = WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = {PortalApplication.class, ControllableAuthorizationConfiguration.class},
+    webEnvironment = WebEnvironment.RANDOM_PORT)
 public class ItemControllerAuthIntegrationTest {
 
   private final Gson GSON = new Gson();
@@ -67,6 +71,9 @@ public class ItemControllerAuthIntegrationTest {
   private UserInfoHolder userInfoHolder;
   @Autowired
   private ItemService itemService;
+
+  @Autowired
+  private RolePermissionService rolePermissionService;
 
   @PostConstruct
   private void postConstruct() {
@@ -108,6 +115,7 @@ public class ItemControllerAuthIntegrationTest {
     headers.set("Content-Type", "application/json");
 
     HttpEntity<String> entity = new HttpEntity<>(GSON.toJson(itemDTO), headers);
+    when(rolePermissionService.hasAnyPermission(eq("luke"), anyList())).thenReturn(true);
 
     restTemplate.postForEntity(
         url("/apps/{appId}/envs/{env}/clusters/{clusterName}/namespaces/{namespaceName}/item"),

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Apollo Authors
+ * Copyright 2025 Apollo Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,12 +33,16 @@ public class ClusterService {
   private final UserInfoHolder userInfoHolder;
   private final AdminServiceAPI.ClusterAPI clusterAPI;
   private final RoleInitializationService roleInitializationService;
+  private final RolePermissionService rolePermissionService;
 
-  public ClusterService(final UserInfoHolder userInfoHolder, final AdminServiceAPI.ClusterAPI clusterAPI,
-      RoleInitializationService roleInitializationService) {
+  public ClusterService(final UserInfoHolder userInfoHolder,
+      final AdminServiceAPI.ClusterAPI clusterAPI,
+      RoleInitializationService roleInitializationService,
+      RolePermissionService rolePermissionService) {
     this.userInfoHolder = userInfoHolder;
     this.clusterAPI = clusterAPI;
     this.roleInitializationService = roleInitializationService;
+    this.rolePermissionService = rolePermissionService;
   }
 
   public List<ClusterDTO> findClusters(Env env, String appId) {
@@ -51,19 +55,22 @@ public class ClusterService {
     }
     ClusterDTO clusterDTO = clusterAPI.create(env, cluster);
 
-    roleInitializationService.initClusterNamespaceRoles(cluster.getAppId(), env.getName(), cluster.getName(),
-        userInfoHolder.getUser().getUserId());
+    roleInitializationService.initClusterNamespaceRoles(cluster.getAppId(), env.getName(),
+        cluster.getName(), userInfoHolder.getUser().getUserId());
 
     Tracer.logEvent(TracerEventType.CREATE_CLUSTER, cluster.getAppId(), "0", cluster.getName());
 
     return clusterDTO;
   }
 
-  public void deleteCluster(Env env, String appId, String clusterName){
+  public void deleteCluster(Env env, String appId, String clusterName) {
     clusterAPI.delete(env, appId, clusterName, userInfoHolder.getUser().getUserId());
+
+    rolePermissionService.deleteRolePermissionsByCluster(appId, env.getName(), clusterName,
+        userInfoHolder.getUser().getUserId());
   }
 
-  public ClusterDTO loadCluster(String appId, Env env, String clusterName){
+  public ClusterDTO loadCluster(String appId, Env env, String clusterName) {
     return clusterAPI.loadCluster(appId, env, clusterName);
   }
 

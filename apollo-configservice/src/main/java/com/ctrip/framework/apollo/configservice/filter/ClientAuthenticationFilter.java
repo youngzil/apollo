@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Apollo Authors
+ * Copyright 2025 Apollo Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,14 +26,14 @@ import com.google.common.net.HttpHeaders;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
@@ -55,7 +55,7 @@ public class ClientAuthenticationFilter implements Filter {
 
   @Override
   public void init(FilterConfig filterConfig) {
-    //nothing
+    // nothing
   }
 
   @Override
@@ -92,8 +92,8 @@ public class ClientAuthenticationFilter implements Filter {
    * @param preCheck Boolean flag indicating whether this is a pre-check
    * @return true if authentication checks is successful, false otherwise
    */
-  private boolean doCheck(HttpServletRequest req, HttpServletResponse resp,
-      String appId, List<String> secrets, boolean preCheck) throws IOException {
+  private boolean doCheck(HttpServletRequest req, HttpServletResponse resp, String appId,
+      List<String> secrets, boolean preCheck) throws IOException {
 
     String timestamp = req.getHeader(Signature.HTTP_HEADER_TIMESTAMP);
     String authorization = req.getHeader(HttpHeaders.AUTHORIZATION);
@@ -102,8 +102,9 @@ public class ClientAuthenticationFilter implements Filter {
     // check timestamp, valid within 1 minute
     if (!checkTimestamp(timestamp)) {
       if (preCheck) {
-        preCheckInvalidLogging(String.format("Invalid timestamp in pre-check. "
-            + "appId=%s,clientIp=%s,timestamp=%s", appId, ip, timestamp));
+        preCheckInvalidLogging(
+            String.format("Invalid timestamp in pre-check. " + "appId=%s,clientIp=%s,timestamp=%s",
+                appId, ip, timestamp));
       } else {
         logger.warn("Invalid timestamp. appId={},clientIp={},timestamp={}", appId, ip, timestamp);
         resp.sendError(HttpServletResponse.SC_UNAUTHORIZED, "RequestTimeTooSkewed");
@@ -112,12 +113,15 @@ public class ClientAuthenticationFilter implements Filter {
     }
 
     // check signature
-    if (!checkAuthorization(authorization, secrets, timestamp, req.getRequestURI(), req.getQueryString())) {
+    if (!checkAuthorization(authorization, secrets, timestamp, req.getRequestURI(),
+        req.getQueryString())) {
       if (preCheck) {
-        preCheckInvalidLogging(String.format("Invalid authorization in pre-check. "
-            + "appId=%s,clientIp=%s,authorization=%s", appId, ip, authorization));
+        preCheckInvalidLogging(String.format(
+            "Invalid authorization in pre-check. " + "appId=%s,clientIp=%s,authorization=%s", appId,
+            ip, authorization));
       } else {
-        logger.warn("Invalid authorization. appId={},clientIp={},authorization={}", appId, ip, authorization);
+        logger.warn("Invalid authorization. appId={},clientIp={},authorization={}", appId, ip,
+            authorization);
         resp.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
         return false;
       }
@@ -128,7 +132,7 @@ public class ClientAuthenticationFilter implements Filter {
 
   @Override
   public void destroy() {
-    //nothing
+    // nothing
   }
 
   private boolean checkTimestamp(String timestamp) {

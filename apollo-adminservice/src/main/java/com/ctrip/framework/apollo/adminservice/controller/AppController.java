@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Apollo Authors
+ * Copyright 2025 Apollo Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Objects;
 
@@ -82,8 +82,8 @@ public class AppController {
 
   @GetMapping("/apps")
   public List<AppDTO> find(@RequestParam(value = "name", required = false) String name,
-                           Pageable pageable) {
-    List<App> app = null;
+      Pageable pageable) {
+    List<App> app;
     if (StringUtils.isBlank(name)) {
       app = appService.findAll(pageable);
     } else {

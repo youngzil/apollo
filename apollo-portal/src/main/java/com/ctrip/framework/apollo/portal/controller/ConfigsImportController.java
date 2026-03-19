@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Apollo Authors
+ * Copyright 2025 Apollo Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
  */
 package com.ctrip.framework.apollo.portal.controller;
 
+import com.ctrip.framework.apollo.common.exception.BadRequestException;
 import com.google.common.base.Splitter;
 
 import com.ctrip.framework.apollo.core.enums.ConfigFileFormat;
@@ -44,13 +45,11 @@ import java.util.zip.ZipInputStream;
 @RestController
 public class ConfigsImportController {
   private static final String ENV_SEPARATOR = ",";
-
+  private static final String CONFLICT_ACTION_IGNORE = "ignore";
+  private static final String CONFLICT_ACTION_COVER = "cover";
   private final ConfigsImportService configsImportService;
 
-
-  public ConfigsImportController(
-      final ConfigsImportService configsImportService
-  ) {
+  public ConfigsImportController(final ConfigsImportService configsImportService) {
     this.configsImportService = configsImportService;
   }
 
@@ -61,48 +60,59 @@ public class ConfigsImportController {
    *             etc.
    * @throws IOException
    */
-  @PreAuthorize(value = "@userPermissionValidator.hasModifyNamespacePermission(#appId, #env, #clusterName, #namespaceName)")
+  @PreAuthorize(
+      value = "@unifiedPermissionValidator.hasModifyNamespacePermission(#appId, #env, #clusterName, #namespaceName)")
   @PostMapping("/apps/{appId}/envs/{env}/clusters/{clusterName}/namespaces/{namespaceName}/items/import")
   public void importConfigFile(@PathVariable String appId, @PathVariable String env,
-                               @PathVariable String clusterName, @PathVariable String namespaceName,
-                               @RequestParam("file") MultipartFile file) throws IOException {
+      @PathVariable String clusterName, @PathVariable String namespaceName,
+      @RequestParam("file") MultipartFile file) throws IOException {
     // check file
     ConfigFileUtils.check(file);
     final String format = ConfigFileUtils.getFormat(file.getOriginalFilename());
-    final String standardFilename = ConfigFileUtils.toFilename(appId, clusterName,
-                                                               namespaceName,
-                                                               ConfigFileFormat.fromString(format));
+    final String standardFilename = ConfigFileUtils.toFilename(appId, clusterName, namespaceName,
+        ConfigFileFormat.fromString(format));
 
-    configsImportService.forceImportNamespaceFromFile(Env.valueOf(env), standardFilename, file.getInputStream());
+    configsImportService.forceImportNamespaceFromFile(Env.valueOf(env), standardFilename,
+        file.getInputStream());
   }
 
-  @PreAuthorize(value = "@userPermissionValidator.isSuperAdmin()")
-  @PostMapping(value = "/configs/import", params = "conflictAction=cover")
-  public void importConfigByZipWithCoverConflictNamespace(@RequestParam(value = "envs") String envs,
-                                @RequestParam("file") MultipartFile file) throws IOException {
+  @PreAuthorize(value = "@unifiedPermissionValidator.isSuperAdmin()")
+  @PostMapping(value = "/configs/import")
+  public void importConfigByZip(@RequestParam(value = "envs") String envs,
+      @RequestParam(defaultValue = CONFLICT_ACTION_IGNORE) String conflictAction,
+      @RequestParam("file") MultipartFile file) throws IOException {
+    validateConflictAction(conflictAction);
+    boolean ignoreConflictNamespace = conflictAction.equals(CONFLICT_ACTION_IGNORE);
 
-    List<Env>
-        importEnvs =
-        Splitter.on(ENV_SEPARATOR).splitToList(envs).stream().map(env -> Env.valueOf(env)).collect(Collectors.toList());
+    List<Env> importEnvs = Splitter.on(ENV_SEPARATOR).splitToList(envs).stream().map(Env::valueOf)
+        .collect(Collectors.toList());
 
     byte[] bytes = file.getBytes();
     try (ZipInputStream zipInputStream = new ZipInputStream(new ByteArrayInputStream(bytes))) {
-      configsImportService.importDataFromZipFile(importEnvs, zipInputStream, false);
+      configsImportService.importDataFromZipFile(importEnvs, zipInputStream,
+          ignoreConflictNamespace);
     }
   }
 
-  @PreAuthorize(value = "@userPermissionValidator.isSuperAdmin()")
-  @PostMapping(value = "/configs/import", params = "conflictAction=ignore")
-  public void importConfigByZipWithIgnoreConflictNamespace(@RequestParam(value = "envs") String envs,
-                                @RequestParam("file") MultipartFile file) throws IOException {
-
-    List<Env>
-        importEnvs =
-        Splitter.on(ENV_SEPARATOR).splitToList(envs).stream().map(env -> Env.valueOf(env)).collect(Collectors.toList());
-
+  @PreAuthorize(value = "@unifiedPermissionValidator.isAppAdmin(#appId)")
+  @PostMapping(value = "/apps/{appId}/envs/{env}/clusters/{clusterName}/import")
+  public void importAppConfigByZip(@PathVariable String appId, @PathVariable String env,
+      @PathVariable String clusterName,
+      @RequestParam(defaultValue = CONFLICT_ACTION_IGNORE) String conflictAction,
+      @RequestParam("file") MultipartFile file) throws IOException {
+    validateConflictAction(conflictAction);
+    boolean ignoreConflictNamespace = conflictAction.equals(CONFLICT_ACTION_IGNORE);
     byte[] bytes = file.getBytes();
     try (ZipInputStream zipInputStream = new ZipInputStream(new ByteArrayInputStream(bytes))) {
-      configsImportService.importDataFromZipFile(importEnvs, zipInputStream, true);
+      configsImportService.importAppConfigFromZipFile(appId, Env.valueOf(env), clusterName,
+          zipInputStream, ignoreConflictNamespace);
+    }
+  }
+
+  private void validateConflictAction(String conflictAction) {
+    if (!conflictAction.equals(CONFLICT_ACTION_COVER)
+        && !conflictAction.equals(CONFLICT_ACTION_IGNORE)) {
+      throw new BadRequestException("ConflictAction is incorrect.");
     }
   }
 }

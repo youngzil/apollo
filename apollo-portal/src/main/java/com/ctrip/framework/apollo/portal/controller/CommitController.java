@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Apollo Authors
+ * Copyright 2025 Apollo Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,12 @@ package com.ctrip.framework.apollo.portal.controller;
 
 import com.ctrip.framework.apollo.common.dto.CommitDTO;
 import com.ctrip.framework.apollo.core.utils.StringUtils;
+import com.ctrip.framework.apollo.portal.component.UnifiedPermissionValidator;
 import com.ctrip.framework.apollo.portal.environment.Env;
-import com.ctrip.framework.apollo.portal.component.UserPermissionValidator;
 import com.ctrip.framework.apollo.portal.service.CommitService;
-import javax.validation.Valid;
-import javax.validation.constraints.Positive;
-import javax.validation.constraints.PositiveOrZero;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,27 +38,32 @@ import java.util.List;
 public class CommitController {
 
   private final CommitService commitService;
-  private final UserPermissionValidator userPermissionValidator;
+  private final UnifiedPermissionValidator unifiedPermissionValidator;
 
-  public CommitController(final CommitService commitService, final UserPermissionValidator userPermissionValidator) {
+  public CommitController(final CommitService commitService,
+      final UnifiedPermissionValidator unifiedPermissionValidator) {
     this.commitService = commitService;
-    this.userPermissionValidator = userPermissionValidator;
+    this.unifiedPermissionValidator = unifiedPermissionValidator;
   }
 
   @GetMapping("/apps/{appId}/envs/{env}/clusters/{clusterName}/namespaces/{namespaceName}/commits")
   public List<CommitDTO> find(@PathVariable String appId, @PathVariable String env,
-                              @PathVariable String clusterName, @PathVariable String namespaceName,
-                              @RequestParam(required = false) String key,
-                              @Valid @PositiveOrZero(message = "page should be positive or 0") @RequestParam(defaultValue = "0") int page,
-                              @Valid @Positive(message = "size should be positive number") @RequestParam(defaultValue = "10") int size) {
-    if (userPermissionValidator.shouldHideConfigToCurrentUser(appId, env, clusterName, namespaceName)) {
+      @PathVariable String clusterName, @PathVariable String namespaceName,
+      @RequestParam(required = false) String key,
+      @Valid @PositiveOrZero(message = "page should be positive or 0")
+      @RequestParam(defaultValue = "0") int page,
+      @Valid @Positive(message = "size should be positive number")
+      @RequestParam(defaultValue = "10") int size) {
+    if (unifiedPermissionValidator.shouldHideConfigToCurrentUser(appId, env, clusterName,
+        namespaceName)) {
       return Collections.emptyList();
     }
 
     if (StringUtils.isEmpty(key)) {
       return commitService.find(appId, Env.valueOf(env), clusterName, namespaceName, page, size);
     } else {
-      return commitService.findByKey(appId, Env.valueOf(env), clusterName, namespaceName, key, page, size);
+      return commitService.findByKey(appId, Env.valueOf(env), clusterName, namespaceName, key, page,
+          size);
     }
 
   }
