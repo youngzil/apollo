@@ -101,8 +101,7 @@ public class AccessKeyServiceWithCache implements InitializingBean, DisposableBe
       snapshot = List.copyOf(accessKeyCache.get(appId));
     }
 
-    return snapshot.stream().filter(filter).map(AccessKey::getSecret)
-        .collect(Collectors.toList());
+    return snapshot.stream().filter(filter).map(AccessKey::getSecret).collect(Collectors.toList());
   }
 
   @Override
