@@ -18,5 +18,4 @@
 -- utf8mb4 counts VARCHAR(16000) as 64000 bytes toward the 65535 row-size limit,
 -- so widening other columns (e.g. NamespaceName) fails with error 1118.
 
-ALTER TABLE `GrayReleaseRule`
-  MODIFY COLUMN `Rules` TEXT COMMENT '灰度规则';
+ALTER TABLE `GrayReleaseRule` MODIFY COLUMN `Rules` TEXT COMMENT '灰度规则';
